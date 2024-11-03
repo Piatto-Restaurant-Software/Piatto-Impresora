@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Gestión de Impresoras - Piatto</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="../assets/style.css" />
+  </head>
+  <body>
+    <div class="container-fluid mx-4 my-2">
+      <div class="row">
+        <div class="col-auto"><img src="../assets/logo.png" alt="Logo" class="logo-image mb-3"></div>
+        <div class="col-12">
+          <h3>Impresoras</h3>
+          <p>Visualiza las impresoras que tienes configuradas</p>
+        </div>
+        <!-- <div class="col-12">
+          <div class="container-fluid">
+            <div class="row justify-content-between">
+              <div class="col-8">
+                  <h1>Impresoras</h1>
+                  <h3>Visualiza las impresoras que tienes configuradas</h3>
+              </div>
+              <div class="col-2">
+                <img src="../assets/logo.png" alt="Logo" class="printer-image mb-3">
+              </div>
+            </div>
+          </div>
+        </div> -->
+        <div class="col-12">
+          <div class="container-fluid">
+            <div class="row" id="printer-container">
+              <!-- Impresoras conectadas -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const { ipcRenderer } = require("electron");
+
+      async function fetchPrinters() {
+        try {
+          const printers = await ipcRenderer.invoke("get-connected-printers");
+
+          // Limpiar el contenedor de impresoras
+          const container = document.getElementById("printer-container");
+          container.innerHTML = "";
+
+          printers.forEach((printer) => {
+            const printerDiv = document.createElement("div");
+            printerDiv.className = "col-sm-6 col-md-4 col-lg-4 mb-5";
+
+            // Determinar la clase de estado según el estado de la impresora
+            let statusClass = "";
+            switch (printer.status) {
+              case "Conectada":
+                statusClass = "badge-conectada";
+                break;
+              case "Inactiva":
+                statusClass = "badge-inactiva";
+                break;
+              case "Imprimiendo":
+                statusClass = "badge-imprimiendo";
+                break;
+              case "Error":
+                statusClass = "badge-error";
+                break;
+            }
+
+            printerDiv.innerHTML = `
+            <div class="card bg-dark text-white shadow">
+              <div class="card-body text-center">
+                <div class="badge-container">
+                  <span class="badge ${statusClass}"><span class="dot"></span> ${
+              printer.status
+            }</span>  
+                </div>
+                <img src="../assets/impresora.png" alt="Impresora" class="printer-image mb-3">
+                <h5 class="card-title mt-2">${printer.name}</h5>
+                <p class="card-text">${
+                  printer.default ? "Predeterminada" : "No predeterminada"
+                }</p>
+                <button class="btn" onclick="testPrinter('${
+                  printer.name
+                }')">Probar</button>
+              </div>
+            </div>
+          `;
+            container.appendChild(printerDiv);
+          });
+        } catch (error) {
+          console.error("Error al obtener impresoras:", error);
+        }
+      }
+
+      async function testPrinter(printerName) {
+        try {
+          const response = await fetch(
+            "http://localhost:3001/api/v1/impresion/prueba",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ printerName }),
+            }
+          );
+
+          const result = await response.json();
+          if (result.success) {
+            alert("Impresión de prueba completada exitosamente.");
+          } else {
+            alert("Error al imprimir de prueba: " + result.message);
+          }
+        } catch (error) {
+          console.error("Error al realizar la impresión de prueba:", error);
+          alert("Error al realizar la impresión de prueba.");
+        }
+      }
+
+      window.onload = fetchPrinters;
+    </script>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
