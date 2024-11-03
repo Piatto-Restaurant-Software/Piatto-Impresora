@@ -93,7 +93,37 @@ class PrinterService {
           }
         );
       } else if (os.platform() === "darwin") {
-        // Implementación para macOS si es necesario
+        exec("lpstat -p -d", (error, stdout, stderr) => {
+          if (error) {
+            console.error("Error al ejecutar lpstat:", error);
+            return reject(
+              `Error al obtener impresoras en macOS: ${error.message}`
+            );
+          }
+          console.log("Salida de lpstat:", stdout);
+
+          const printers = stdout
+            .split("\n")
+            .filter((line) => line.includes("impresora")) // Buscar líneas que describen impresoras
+            .map((line) => {
+              const nameMatch = line.match(/impresora\s+(\S+)/); // Capturar el nombre después de "impresora "
+              const name = nameMatch ? nameMatch[1] : "Desconocido";
+              const status = line.includes("inactiva")
+                ? "Inactiva"
+                : "Conectada";
+              const isDefault = stdout.includes(
+                `destino por omisión del sistema: ${name}`
+              );
+
+              return {
+                name: name,
+                status: status,
+                default: isDefault,
+              };
+            });
+
+          resolve(printers);
+        });
       } else {
         reject("Plataforma no soportada");
       }
