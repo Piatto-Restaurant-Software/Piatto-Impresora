@@ -187,7 +187,6 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
 
 expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
   try {
-    console.log("Inicio de impresión de prueba");
     const { printerName } = req.body;
     const printerInfo = await PrinterService.findPrinterByName(printerName);
 

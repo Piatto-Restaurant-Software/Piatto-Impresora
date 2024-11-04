@@ -81,7 +81,7 @@ async function printTicketWithESCBuffer(ticketData, printerName) {
 
       // Imprimir las líneas adicionales del producto, si las hay
       for (let i = 1; i < lineasProducto.length; i++) {
-        await printer.write(`      ${lineasProducto[i]}\n`); // Espacio inicial para alinear las líneas adicionales del producto
+        await printer.write(`      ${lineasProducto[i]}\n`); 
       }
     }
 

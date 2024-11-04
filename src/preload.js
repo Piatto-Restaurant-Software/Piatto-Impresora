@@ -6,7 +6,8 @@ contextBridge.exposeInMainWorld("electron", {
 });
 
 contextBridge.exposeInMainWorld("paths", {
-  assetsPath: process.env.NODE_ENV === "production"
-    ? path.join(process.resourcesPath, "assets")
-    : path.join(__dirname, "assets"),
+  assetsPath:
+    process.env.NODE_ENV === "production"
+      ? path.join(process.resourcesPath, "assets")
+      : path.join(__dirname, "assets"),
 });

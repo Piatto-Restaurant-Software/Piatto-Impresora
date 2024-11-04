@@ -103,7 +103,6 @@ class PrinterService {
               `Error al obtener impresoras en macOS: ${error.message}`
             );
           }
-          // console.log("Salida de lpstat:", stdout);
 
           const usbDevices = usb.getDeviceList();
 

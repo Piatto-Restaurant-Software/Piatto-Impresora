@@ -194,9 +194,6 @@
 
       async function testPrinter(printerName) {
         try {
-          console.log(
-            `URL usada: http://${localIP}:3001/api/v1/impresion/prueba`
-          );
           const response = await fetch(
             `http://${localIP}:3001/api/v1/impresion/prueba`,
             {

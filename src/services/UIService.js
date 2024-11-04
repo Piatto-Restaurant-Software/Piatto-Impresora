@@ -11,31 +11,26 @@ class UIService {
   createMainWindow() {
     // Verifica si la aplicación está empaquetada
     const isPackaged = app.isPackaged;
-    console.log("Empaquetado 1: ", isPackaged);
 
     // Determina la ruta del preload y del archivo HTML en función del entorno
     const preloadPath = isPackaged
       ? path.join(process.resourcesPath, "preload.js")
       : path.join(__dirname, "../preload.js");
-    console.log("Contenido de process.resourcesPath: ", process.resourcesPath);
-    console.log("Ruta de preload 1: ", preloadPath);
-    console.log(
-      "Ruta de preload 2: ",
-      path.join(process.resourcesPath, "preload.js")
-    );
-    console.log("Ruta de preload 3: ", path.join(__dirname, "../preload.js"));
+
+
+
 
     const htmlPath = isPackaged
       ? path.join(process.resourcesPath, "views", "index.html")
       : path.join(__dirname, "../views/index.html");
 
-    console.log("Ruta de html 1: ", htmlPath);
+
 
     // Ruta del icono en formato .icns para el dock
     const dockIconPath = isPackaged
       ? path.join(process.resourcesPath, "assets", "iconoDock.icns")
       : path.join(__dirname, "../assets/iconoDock.icns");
-    console.log("Ruta icondock: ", dockIconPath);
+
 
     this.window = new BrowserWindow({
       icon: dockIconPath,
@@ -54,7 +49,7 @@ class UIService {
 
     this.window.webContents.on("did-finish-load", () => {
       setTimeout(() => {
-        console.log("Enviando evento request-server-info a main.js");
+
         this.window.webContents.send("request-server-info");
       }, 2000); // Ajusta el retraso si es necesario
     });
@@ -80,9 +75,7 @@ class UIService {
         } else {
           this.window.setSkipTaskbar(true); // Oculta la ventana de la barra de tareas en Windows
         }
-        console.log(
-          "Evento: close - Ventana oculta, aplicación en segundo plano en el tray"
-        );
+
 
         // Desactiva el atajo Command+Q
         globalShortcut.unregister("CommandOrControl+Q");
