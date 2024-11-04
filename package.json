@@ -1,0 +1,69 @@
+{
+  "name": "impresoras-piatto",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "postinstall": "npx @electron/rebuild"
+  },
+  "build": {
+    "appId": "com.piatto.impresoras",
+    "productName": "Impresoras Piatto",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "src/assets",
+        "to": "assets"
+      },
+      {
+        "from": "src/views",
+        "to": "views"
+      },
+      {
+        "from": "src/preload.js",
+        "to": "preload.js"
+      }
+    ],
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/iconoDock.icns" 
+    }
+  },
+  "dependencies": {
+    "axios": "^1.5.0",
+    "body-parser": "^1.20.2",
+    "bonjour": "^3.5.0",
+    "cors": "^2.8.5",
+    "escpos": "^3.0.0-alpha.6",
+    "escpos-buffer": "^4.1.0",
+    "escpos-usb": "^3.0.0-alpha.4",
+    "express": "^4.18.2",
+    "fs": "^0.0.1-security",
+    "handlebars": "^4.7.8",
+    "node-thermal-printer": "^4.4.3",
+    "os": "^0.1.2",
+    "path": "^0.12.7",
+    "pdf-to-printer": "^5.6.0",
+    "puppeteer": "^21.3.4",
+    "puppeteer-core": "^21.3.4",
+    "shell-escape": "^0.2.0",
+    "usb": "^2.0.3",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.0",
+    "electron": "^26.2.2",
+    "electron-builder": "^25.1.8"
+  }
+}

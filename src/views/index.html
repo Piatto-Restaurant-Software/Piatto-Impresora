@@ -1,0 +1,275 @@
+<!-- <!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gestión de Impresoras - Piatto</title>
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+  <link rel="stylesheet" href="${window.paths.assetsPath}/style.css" />
+</head>
+<body>
+  <div class="container-fluid mx-4 my-2">
+    <div class="row">
+      <div class="col-auto">
+        <img src="${window.paths.assetsPath}/logo.png" alt="Logo" class="logo-image mb-3" />
+      </div>
+      <div class="col-12">
+        <h3>Impresoras</h3>
+        <p>Visualiza las impresoras que tienes configuradas</p>
+      </div>
+      <div class="col-12">
+        <div class="container-fluid">
+          <div class="row" id="printer-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let localIP, port;
+
+    async function requestServerInfo() {
+      try {
+        const serverInfo = await window.electron.ipcRenderer.invoke("request-server-info");
+        localIP = serverInfo.localIP;
+        port = serverInfo.port;
+        console.log("Recibido server-info en HTML:", { localIP, port });
+        initializeWebSocket();
+      } catch (error) {
+        console.error("Error al solicitar la información del servidor:", error);
+      }
+    }
+
+    function initializeWebSocket() {
+      const ws = new WebSocket(`ws://${localIP}:${port}`);
+      ws.onopen = () => console.log("Conectado al WebSocket del servidor");
+      ws.onmessage = (event) => {
+        console.log("Mensaje recibido del WebSocket:", event.data);
+        const printers = JSON.parse(event.data);
+        updatePrinterUI(printers);
+      };
+      ws.onerror = (error) => console.error("Error en WebSocket:", error);
+      ws.onclose = () => console.log("Conexión WebSocket cerrada");
+    }
+
+    async function testPrinter(printerName) {
+      try {
+        const response = await fetch(`http://${localIP}:3001/api/v1/impresion/prueba`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ printerName })
+        });
+        const result = await response.json();
+        alert(result.success ? "Impresión de prueba completada exitosamente." : `Error al imprimir: ${result.message}`);
+      } catch (error) {
+        console.error("Error al realizar la impresión de prueba:", error);
+        alert("Error al realizar la impresión de prueba.");
+      }
+    }
+
+    function updatePrinterUI(printers) {
+      const container = document.getElementById("printer-container");
+      container.innerHTML = "";
+
+      printers.forEach((printer) => {
+        const printerDiv = document.createElement("div");
+        printerDiv.className = "col-sm-6 col-md-4 col-lg-4 mb-5";
+
+        let statusClass = "";
+        switch (printer.status) {
+          case "Desconectada":
+            statusClass = "badge-inactiva";
+            break;
+          case "Conectada":
+            statusClass = "badge-conectada";
+            break;
+          case "Inactiva":
+            statusClass = "badge-inactiva";
+            break;
+          case "Imprimiendo":
+            statusClass = "badge-imprimiendo";
+            break;
+          case "Error":
+            statusClass = "badge-error";
+            break;
+        }
+
+        printerDiv.innerHTML = `
+          <div class="card bg-dark text-white shadow">
+            <div class="card-body text-center">
+              <div class="badge-container">
+                <span class="badge ${statusClass}"><span class="dot"></span> ${printer.status}</span>
+              </div>
+              <img src="${window.paths.assetsPath}/impresora.png" alt="Impresora" class="printer-image mb-3">
+              <h5 class="card-title mt-2">${printer.name}</h5>
+              <p class="card-text">${printer.default ? "Predeterminada" : "No predeterminada"}</p>
+              <button class="btn" onclick="testPrinter('${printer.name}')" ${printer.status === "Desconectada" || printer.status === "Imprimiendo" ? "disabled" : ""}>Probar</button>
+            </div>
+          </div>
+        `;
+        container.appendChild(printerDiv);
+      });
+    }
+
+    window.onload = requestServerInfo;
+  </script>
+</body>
+</html> -->
+
+<!-- //////// -->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Gestión de Impresoras - Piatto</title>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+
+    <link id="dynamic-css" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container-fluid mx-4 my-2">
+      <div class="row">
+        <div class="col-auto">
+          <img id="logo-image" alt="Logo" class="logo-image mb-3" />
+        </div>
+        <div class="col-12">
+          <h3>Impresoras</h3>
+          <p>Visualiza las impresoras que tienes configuradas</p>
+        </div>
+        <div class="col-12">
+          <div class="container-fluid">
+            <div class="row" id="printer-container"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Configuración dinámica de rutas
+      document.getElementById(
+        "dynamic-css"
+      ).href = `${window.paths.assetsPath}/style.css`;
+      document.getElementById(
+        "logo-image"
+      ).src = `${window.paths.assetsPath}/logo.png`;
+
+      let localIP, port;
+
+      async function requestServerInfo() {
+        try {
+          const serverInfo = await window.electron.ipcRenderer.invoke(
+            "request-server-info"
+          );
+          localIP = serverInfo.localIP;
+          port = serverInfo.port;
+          console.log("Recibido server-info en HTML:", { localIP, port });
+          initializeWebSocket();
+        } catch (error) {
+          console.error(
+            "Error al solicitar la información del servidor:",
+            error
+          );
+        }
+      }
+
+      function initializeWebSocket() {
+        const ws = new WebSocket(`ws://${localIP}:${port}`);
+        ws.onopen = () => console.log("Conectado al WebSocket del servidor");
+        ws.onmessage = (event) => {
+          console.log("Mensaje recibido del WebSocket:", event.data);
+          const printers = JSON.parse(event.data);
+          updatePrinterUI(printers);
+        };
+        ws.onerror = (error) => console.error("Error en WebSocket:", error);
+        ws.onclose = () => console.log("Conexión WebSocket cerrada");
+      }
+
+      async function testPrinter(printerName) {
+        try {
+          const response = await fetch(
+            `http://${localIP}:3001/api/v1/impresion/prueba`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ printerName }),
+            }
+          );
+          const result = await response.json();
+          alert(
+            result.success
+              ? "Impresión de prueba completada exitosamente."
+              : `Error al imprimir: ${result.message}`
+          );
+        } catch (error) {
+          console.error("Error al realizar la impresión de prueba:", error);
+          alert("Error al realizar la impresión de prueba.");
+        }
+      }
+
+      function updatePrinterUI(printers) {
+        const container = document.getElementById("printer-container");
+        container.innerHTML = "";
+
+        printers.forEach((printer) => {
+          const printerDiv = document.createElement("div");
+          printerDiv.className = "col-sm-6 col-md-4 col-lg-4 mb-5";
+
+          let statusClass = "";
+          switch (printer.status) {
+            case "Desconectada":
+              statusClass = "badge-inactiva";
+              break;
+            case "Conectada":
+              statusClass = "badge-conectada";
+              break;
+            case "Inactiva":
+              statusClass = "badge-inactiva";
+              break;
+            case "Imprimiendo":
+              statusClass = "badge-imprimiendo";
+              break;
+            case "Error":
+              statusClass = "badge-error";
+              break;
+          }
+
+          printerDiv.innerHTML = `
+          <div class="card bg-dark text-white shadow">
+            <div class="card-body text-center">
+              <div class="badge-container">
+                <span class="badge ${statusClass}"><span class="dot"></span> ${
+            printer.status
+          }</span>
+              </div>
+              <img src="${
+                window.paths.assetsPath
+              }/impresora.png" alt="Impresora" class="printer-image mb-3">
+              <h5 class="card-title mt-2">${printer.name}</h5>
+              <p class="card-text">${
+                printer.default ? "Predeterminada" : "No predeterminada"
+              }</p>
+              <button class="btn" onclick="testPrinter('${printer.name}')" ${
+            printer.status === "Desconectada" ||
+            printer.status === "Imprimiendo"
+              ? "disabled"
+              : ""
+          }>Probar</button>
+            </div>
+          </div>
+        `;
+          container.appendChild(printerDiv);
+        });
+      }
+
+      window.onload = requestServerInfo;
+    </script>
+  </body>
+</html>

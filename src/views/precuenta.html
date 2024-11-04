@@ -1,0 +1,303 @@
+<!-- <!DOCTYPE html>
+<html>
+  <head>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
+      crossorigin="anonymous"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
+      crossorigin="anonymous"
+    />
+    <style>
+      html,
+      body {
+        width: 80mm !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+      }
+
+      body {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+
+      .contenedor-ticket {
+        flex: 0 0 auto !important;
+        width: 75mm !important;
+      }
+
+      *,
+      *:before,
+      *:after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      @page {
+        size: 75mm auto;
+        margin: 0.25rem;
+      }
+
+      .punteado {
+        border-top: 2px dashed black;
+        border-bottom: 2px dashed black;
+        text-align: center;
+      }
+
+      .punteadoT {
+        border-top: 2px dashed black;
+        text-align: center;
+      }
+
+      .punteadoB {
+        border-bottom: 2px dashed black;
+        text-align: center;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      th,
+      td {
+        text-align: center;
+        font-size: clamp(0.8rem, 1vw, 1rem);
+        font-family: "Arial", sans-serif;
+      }
+
+      th,
+      td.articulo {
+        text-align: left;
+      }
+
+      thead,
+      th {
+        text-align: center;
+        font-size: clamp(0.8rem, 1vw, 1rem);
+        font-family: "Arial", sans-serif;
+      }
+      span {
+        font-size: clamp(0.8rem, 1vw, 1rem);
+        font-family: "Arial", sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container-fluid ps-0 pe-4 contenedor-ticket">
+      <div class="row">
+        <div class="col-12 punteadoB">
+          <table>
+            <thead>
+              <tr>
+                <th>Articulo</th>
+                <th>Cantidad</th>
+                <th>P.U.</th>
+                <th>Dto.</th>
+                <th>Importe</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{#each ticket.pedido_ordenes}}
+              <tr>
+                <td class="articulo">
+                  {{this.pedido.producto_presentacion.nombre}}
+                </td>
+                <td>{{this.pedido.cantidad}}</td>
+                <td>${{this.pedido.precio_unitario}}</td>
+                <td>
+                  {{#if pedido.descuento}} ${{pedido.descuento}} {{else}} -
+                  {{/if}}
+                </td>
+                <td>${{this.pedido.precio_total}}</td>
+              </tr>
+              {{/each}}
+            </tbody>
+          </table>
+        </div>
+        <div class="col-12">
+          <div class="container-fluid">
+            <div class="row">
+              <div class="col-12 p-0">
+                <div class="container-fluid">
+                  <div class="row justify-content-between">
+                    <div class="col-auto p-0">
+                      <span>Subtotal:</span>
+                    </div>
+                    <div class="col-auto p-0">
+                      <span>${{ticket.subtotal}}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 p-0">
+                <div class="container-fluid">
+                  <div class="row justify-content-between">
+                    <div class="col-auto p-0">
+                      <span>Propina:</span>
+                    </div>
+                    <div class="col-auto p-0">
+                      <span>${{ticket.subtotal}}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 p-0">
+                <div class="container-fluid">
+                  <div class="row justify-content-between">
+                    <div class="col-auto p-0">
+                      <span>Impuesto:</span>
+                    </div>
+                    <div class="col-auto p-0">
+                      <span>${{ticket.impuesto}}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 p-0">
+                <div class="container-fluid">
+                  <div class="row justify-content-between">
+                    <div class="col-auto p-0">
+                      <span>Descuento:</span>
+                    </div>
+                    <div class="col-auto p-0">
+                      <span>{{ticket.descuento_venta}}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 p-0">
+                <div class="container-fluid">
+                  <div class="row justify-content-between">
+                    <div class="col-auto p-0">
+                      <span>Total:</span>
+                    </div>
+                    <div class="col-auto p-0">
+                      <span>${{ticket.total}}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html> -->
+
+
+<!-- Prueba de Pre-Cuenta -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body, html {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+      }
+    
+      .header, .footer {
+        text-align: center;
+        font-size: 12px;
+        margin-bottom: 5px;
+      }
+    
+      .header .title {
+        font-weight: bold;
+        font-size: 14px;
+      }
+    
+      .separator {
+        border-top: 1px dashed black;
+        margin: 10px 0;
+      }
+    
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+    
+      .table th, .table td {
+        font-size: 11px;
+        padding: 2px;
+        text-align: right;
+      }
+    
+      .table th {
+        font-weight: bold;
+        text-align: left;
+      }
+    
+      .table td:first-child {
+        text-align: left; /* Alinea el primer elemento (artículo) a la izquierda */
+      }
+    
+      .total-section {
+        text-align: right;
+        font-size: 12px;
+        margin-top: 5px;
+      }
+    </style>
+    
+  </head>
+  <body>
+    <div class="header">
+      <p class="title">{{ticket.local.nombre}}</p>
+      <p>{{ticket.local.direccion}} | Tel: {{ticket.local.telefono}}</p>
+      <p>Fecha: {{ticket.venta.fin_venta}} | Mesa: {{ticket.venta.mesa}}</p>
+    </div>
+
+    <hr class="separator">
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Artículo</th>
+          <th>Cant</th>
+          <th>P.U.</th>
+          <th>Dto.</th>
+          <th>Importe</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each ticket.pedidos}}
+        <tr>
+          <td style="text-align: left;">{{this.producto_presentacion.nombre}}</td>
+          <td>{{this.cantidad}}</td>
+          <td>${{this.precio_unitario}}</td>
+          <td>{{#if this.descuento}}${{this.descuento}}{{else}}-{{/if}}</td>
+          <td>${{this.precio_total}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+
+    <hr class="separator">
+
+    <div class="total-section">
+      <p>Subtotal: ${{ticket.cuenta_venta.subtotal}}</p>
+      <p><strong>Total: ${{ticket.cuenta_venta.total}}</strong></p>
+    </div>
+
+    <hr class="separator">
+
+    <div class="footer">
+      <p>{{ticket.local.encabezado_ticket}}</p>
+      <p>{{ticket.local.pie_pagina_ticket}}</p>
+      <p><strong>Número de orden: {{ticket.cuenta_venta.numero_orden}}</strong></p>
+    </div>
+  </body>
+</html>
