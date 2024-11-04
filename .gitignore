@@ -1,2 +1,25 @@
-.env
+# Dependencias
 node_modules/
+# Variables de entorno
+.env
+# Archivos de compilación de Electron
+dist/
+out/
+# Archivos de log y de depuración
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Caches de build (si estás usando algún sistema de build como webpack o vite)
+.cache/
+build/
+# Configuración de OS
+.DS_Store
+Thumbs.db
+# Archivos de configuración de editor de texto (opcional)
+.idea/
+.vscode/
+# Archivos temporales de salida
+ticket_output.bin
+# Todos los archivos .bin generados
+*.bin

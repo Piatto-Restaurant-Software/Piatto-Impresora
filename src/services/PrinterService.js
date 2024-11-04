@@ -11,7 +11,6 @@ class PrinterService {
       devices.forEach((device) => {
         const deviceDesc = device.deviceDescriptor;
         if (deviceDesc.idVendor === 0x0416 && deviceDesc.idProduct === 0x5011) {
-          // Adjust for other printers as needed
           foundDevice = {
             vendorId: deviceDesc.idVendor,
             productId: deviceDesc.idProduct,
@@ -25,19 +24,18 @@ class PrinterService {
         console.log("Impresora encontrada:", foundDevice);
         resolve(foundDevice);
       } else {
-        console.log("Impresora no encontradas", foundDevice);
+        console.log("Impresora no encontrada", foundDevice);
         reject(new Error("Printer not found"));
       }
     });
   }
 
-  // Obtener todas las impresoras conectadas y sus estados usando comandos del sistema
   static getAllConnectedPrinters() {
     return new Promise((resolve, reject) => {
       if (os.platform() === "win32") {
         exec(
           'wmic printer get Name, PrinterStatus, PortName, Default',
-          (error, stdout, stderr) => {
+          async (error, stdout, stderr) => {
             if (error) {
               console.error("Error al ejecutar wmic:", error);
               return reject(
@@ -48,81 +46,107 @@ class PrinterService {
 
             const usbDevices = usb.getDeviceList();
 
-            const printers = stdout
-              .split("\n")
-              .slice(1)
-              .map(line => line.trim())
-              .filter(line => line) // Eliminar líneas vacías
-              .map(line => {
-                // Dividir usando una expresión regular para extraer cada columna de forma precisa
-                const parts = line.match(/(TRUE|FALSE)\s+(.+?)\s+([\S]+)\s+(\d+)/);
+            const printers = await Promise.all(
+              stdout
+                .split("\n")
+                .slice(1)
+                .map((line) => line.trim())
+                .filter((line) => line)
+                .map(async (line) => {
+                  const parts = line.match(/(TRUE|FALSE)\s+(.+?)\s+([\S]+)\s+(\d+)/);
 
-                if (!parts) return null; // Ignorar líneas que no coinciden con el patrón
+                  if (!parts) return null;
 
-                const isDefault = parts[1] === "TRUE";
-                const printerName = parts[2].trim();
-                const portName = parts[3].trim();
-                const wmicStatus = this.parseWindowsStatus(parts[4]);
+                  const isDefault = parts[1] === "TRUE";
+                  const printerName = parts[2].trim();
+                  const portName = parts[3].trim();
+                  const wmicStatus = this.parseWindowsStatus(parts[4]);
 
-                // Verificar si el dispositivo está físicamente conectado al puerto USB esperado
-                const isPhysicallyConnected = usbDevices.some(device => {
-                  const desc = device.deviceDescriptor;
-                  return portName.startsWith("USB"); // Verificar si está en un puerto USB
-                });
+                  const isPhysicallyConnected = usbDevices.some((device) => {
+                    const desc = device.deviceDescriptor;
+                    return portName.startsWith("USB");
+                  });
 
-                let finalStatus;
-                if (wmicStatus === "Conectada" && isPhysicallyConnected) {
-                  finalStatus = "Conectada";
-                } else if (wmicStatus === "Inactiva" && isPhysicallyConnected) {
-                  finalStatus = "Conectada pero inactiva";
-                } else {
-                  finalStatus = "Desconectada";
-                }
+                  const isPrinting = await this.checkPrintJobWindows(printerName);
 
-                return {
-                  name: printerName,
-                  status: finalStatus,
-                  default: isDefault,
-                  physicallyConnected: isPhysicallyConnected,
-                  port: portName
-                };
-              })
-              .filter(Boolean); // Eliminar cualquier null resultante de líneas no coincidentes
+                  let finalStatus;
+                  if (isPrinting) {
+                    finalStatus = "Imprimiendo";
+                  } else if (wmicStatus === "Error") {
+                    finalStatus = "Error";
+                  } else if (wmicStatus === "Conectada" && isPhysicallyConnected) {
+                    finalStatus = "Conectada";
+                  } else if (wmicStatus === "Inactiva" && isPhysicallyConnected) {
+                    finalStatus = "Inactiva";
+                  } else {
+                    finalStatus = "Desconectada";
+                  }
 
-            resolve(printers);
+                  return {
+                    name: printerName,
+                    status: finalStatus,
+                    default: isDefault,
+                    physicallyConnected: isPhysicallyConnected,
+                    port: portName,
+                  };
+                })
+            );
+
+            resolve(printers.filter(Boolean));
           }
         );
       } else if (os.platform() === "darwin") {
-        exec("lpstat -p -d", (error, stdout, stderr) => {
+        exec("lpstat -p -d", async (error, stdout, stderr) => {
           if (error) {
             console.error("Error al ejecutar lpstat:", error);
             return reject(
               `Error al obtener impresoras en macOS: ${error.message}`
             );
           }
-          console.log("Salida de lpstat:", stdout);
+          // console.log("Salida de lpstat:", stdout);
 
-          const printers = stdout
-            .split("\n")
-            .filter((line) => line.includes("impresora")) // Buscar líneas que describen impresoras
-            .map((line) => {
-              const nameMatch = line.match(/impresora\s+(\S+)/); // Capturar el nombre después de "impresora "
-              const name = nameMatch ? nameMatch[1] : "Desconocido";
-              const status = line.includes("inactiva")
-                ? "Inactiva"
-                : "Conectada";
-              const isDefault = stdout.includes(
-                `destino por omisión del sistema: ${name}`
-              );
+          const usbDevices = usb.getDeviceList();
 
-              return {
-                name: name,
-                status: status,
-                default: isDefault,
-              };
-            });
+          const printers = await Promise.all(
+            stdout
+              .split("\n")
+              .filter((line) => line.includes("impresora"))
+              .map(async (line) => {
+                const nameMatch = line.match(/impresora\s+(\S+)/);
+                const name = nameMatch ? nameMatch[1] : "Desconocido";
+                const status = line.includes("inactiva") ? "Inactiva" : "Conectada";
+                const isDefault = stdout.includes(
+                  `destino por omisión del sistema: ${name}`
+                );
 
-          resolve(printers);
+                const isPhysicallyConnected = usbDevices.some((device) => {
+                  const desc = device.deviceDescriptor;
+                  return device.portNumbers && device.portNumbers.includes(1);
+                });
+
+                const isPrinting = await this.checkPrintJobMac(name);
+
+                let finalStatus;
+                if (isPrinting) {
+                  finalStatus = "Imprimiendo";
+                } else if (status === "Conectada" && isPhysicallyConnected) {
+                  finalStatus = "Conectada";
+                } else if (status === "Inactiva" && isPhysicallyConnected) {
+                  finalStatus = "Inactiva";
+                } else {
+                  finalStatus = "Desconectada";
+                }
+
+                return {
+                  name: name,
+                  status: finalStatus,
+                  default: isDefault,
+                  physicallyConnected: isPhysicallyConnected,
+                };
+              })
+          );
+
+          resolve(printers.filter(Boolean));
         });
       } else {
         reject("Plataforma no soportada");
@@ -141,6 +165,25 @@ class PrinterService {
       default:
         return "Desconocido";
     }
+  }
+
+  static checkPrintJobWindows(printerName) {
+    return new Promise((resolve) => {
+      exec(
+        `powershell -Command "Get-PrintJob -PrinterName '${printerName}'"`,
+        (error, stdout) => {
+          resolve(stdout.trim().length > 0);
+        }
+      );
+    });
+  }
+
+  static checkPrintJobMac(printerName) {
+    return new Promise((resolve) => {
+      exec(`lpstat -o ${printerName}`, (error, stdout) => {
+        resolve(stdout.trim().length > 0);
+      });
+    });
   }
 }
 

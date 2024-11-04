@@ -2,9 +2,14 @@ const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 const os = require("os");
+const { app } = require("electron");
 
-//Obtener VendorID y ProductID para impresion ESC/POS
+// Obtener VendorID y ProductID para impresion ESC/POS
 const { Printer, InMemory, Style, Align, Drawer } = require("escpos-buffer");
+
+// Ruta segura para almacenar el archivo temporal
+const outputDir = app.getPath("userData");
+const outputPath = path.join(outputDir, "ticket_output.bin");
 
 async function printTicketWithBuffer(ticketData, printerName) {
   if (os.platform() === "win32") {
@@ -99,9 +104,10 @@ async function printTicketWithESCBuffer(ticketData, printerName) {
     await printer.drawer(Drawer.First);
 
     // Generar el archivo binario y enviarlo a la impresora en macOS
-    const outputPath = "ticket_output.bin";
+    // const outputPath = "ticket_output.bin";
+    console.log("Ruta del archivo ticket_output.bin:", outputPath);
     fs.writeFileSync(outputPath, connection.buffer());
-    exec(`lp -d "${printerName.replace(/ /g, "_")}" ${outputPath}`, (err) => {
+    exec(`lp -d "${printerName.replace(/ /g, "_")}" "${outputPath}"`, (err) => {
       if (err) console.error("Error al imprimir en Unix:", err);
       else console.log("Impresión completada en Unix");
     });
@@ -189,7 +195,9 @@ async function printTicketWithPowerShell(ticketData, printerName) {
     await printer.drawer(Drawer.First);
 
     // Guardar el contenido en un archivo binario .bin
-    const outputPath = path.join(__dirname, "ticket_output.bin");
+    // const outputPath = path.join(__dirname, "ticket_output.bin");
+    const outputPath = path.join(process.resourcesPath, "ticket_output.bin");
+    console.log("Ruta del archivo ticket_output.bin:", outputPath);
     fs.writeFileSync(outputPath, connection.buffer());
     const formattedPrinterName = printerName.replace(/ /g, "_");
     // Comando para imprimir en Windows
