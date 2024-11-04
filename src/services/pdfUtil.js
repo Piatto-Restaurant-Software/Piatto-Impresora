@@ -28,7 +28,7 @@ async function printTicketWithESCBuffer(ticketData, printerName, translations) {
     // Crear contenido del ticket
     await printer.setAlignment(Align.Center);
     await printer.write("\x1B\x21\x30"); // Cambia a texto en negrita o doble ancho, si está disponible
-    await printer.write("${translations.title}\n");
+    await printer.write(`${translations.pre_bill}\n`);
     await printer.write("\x1B\x21\x00"); // Restaura el estilo normal
 
     await printer.write("=".repeat(48) + "\n"); // Línea separadora debajo
@@ -42,7 +42,7 @@ async function printTicketWithESCBuffer(ticketData, printerName, translations) {
 
     // Encabezado de tabla
     await printer.setAlignment(Align.Left);
-    await printer.write("${translations.qty}   ${translations.product}                 ${translations.unit_price}    ${translations.product_total}\n");
+    await printer.write(`${translations.qty}   ${translations.product}                 ${translations.unit_price}    ${translations.product_total}\n`);
     await printer.write("-".repeat(48) + "\n"); // Línea divisoria
 
     // Imprimir cada pedido
@@ -96,8 +96,8 @@ async function printTicketWithESCBuffer(ticketData, printerName, translations) {
 
     await printer.setAlignment(Align.Center);
     await printer.write("=".repeat(48) + "\n"); // Línea inferior
-    await printer.write("${translations.thankYou}\n");
-    await printer.write("${translations.comeAgain}\n");
+    await printer.write(`${translations.thank_you}\n`);
+    await printer.write(`${translations.come_again}\n`);
 
     await printer.feed(6); // Alimentar papel
     await printer.cutter();

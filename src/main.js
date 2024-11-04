@@ -200,6 +200,7 @@ const loadedLocales = {};
 
 // Configuración de i18n
 i18n.configure({
+  directory: localesPath,
   locales: ["en", "es"],
   defaultLocale: "es",
   objectNotation: true,
@@ -211,7 +212,7 @@ i18n.configure({
 // Envía las traducciones completas al renderizador cuando se carga la ventana principal
 ipcMain.handle("get-translations", async (_, locale) => {
   console.log("Idioma solicitado:", locale);
-  return loadedLocales[locale] || loadedLocales["es"]; // En caso de que no exista, envía el español por defecto
+  return loadedLocales[locale] || loadedLocales["es"]; 
 });
 
 
@@ -247,27 +248,16 @@ expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
     }
 
     // Obtener el idioma del encabezado Accept-Language, o usa 'es' como predeterminado
-    const locale = req.headers["Accept-Language"] || "es";
-    i18n.setLocale(locale); // Configura el idioma para cargar las traducciones correctas
-    console.log("Locale: ", locale)
+    const locale = req.headers["accept-language"] || "es";
+    i18n.setLocale(locale); 
+    console.log("Locale: ", req.headers)
     console.log("Locale configurado en i18n:", i18n.getLocale());
     console.log("Acceso directo a precuenta:", i18n.__("precuenta"));
     console.log("Acceso directo a precuenta.pre_bill:", i18n.__("precuenta.pre_bill"));
 
 
     // Cargar traducciones localizadas para el ticket
-    const translations = {
-      title: i18n.__("precuenta.pre_bill"), 
-      subtotal: i18n.__("precuenta.subtotal"), 
-      total: i18n.__("precuenta.total"), 
-      thankYou: i18n.__("precuenta.thank_you"), 
-      comeAgain: i18n.__("precuenta.come_again"),
-      table: i18n.__("precuenta.table"), 
-      qty: i18n.__("precuenta.qty"), 
-      product: i18n.__("precuenta.product"), 
-      unit_price: i18n.__("precuenta.unit_price"), 
-      product_total: i18n.__("precuenta.product_total") 
-    };
+    const translations = loadedLocales[locale].precuenta;
 
     console.log("Json enviado tra: ", translations)
     
