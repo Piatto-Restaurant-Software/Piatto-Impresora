@@ -40,18 +40,20 @@ expressApp.get("/api/v1/status", (req, res) => {
 });
 
 // Inicia el servidor Express
-server = expressApp.listen(3001, "0.0.0.0", () => {
-  console.log(
-    "Express server has started on IP:",
-    getLocalIPAddress(),
-    "and port 3001"
-  );
-  logToRenderer(
-    "info",
-    `Express server has started on IP: ${getLocalIPAddress()} and port 3001`
-  );
-  publishBonjourService();
-});
+if (!server) {
+  server = expressApp.listen(3001, "0.0.0.0", () => {
+    console.log(
+      "Express server has started on IP:",
+      getLocalIPAddress(),
+      "and port 3001"
+    );
+    logToRenderer(
+      "info",
+      `Express server has started on IP: ${getLocalIPAddress()} and port 3001`
+    );
+    publishBonjourService();
+  });
+}
 
 function publishBonjourService(retries = 5) {
   const localIP = getLocalIPAddress();
