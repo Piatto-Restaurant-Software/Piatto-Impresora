@@ -17,20 +17,14 @@ class UIService {
       ? path.join(process.resourcesPath, "preload.js")
       : path.join(__dirname, "../preload.js");
 
-
-
-
     const htmlPath = isPackaged
       ? path.join(process.resourcesPath, "views", "index.html")
       : path.join(__dirname, "../views/index.html");
-
-
 
     // Ruta del icono en formato .icns para el dock
     const dockIconPath = isPackaged
       ? path.join(process.resourcesPath, "assets", "iconoDock.icns")
       : path.join(__dirname, "../assets/iconoDock.icns");
-
 
     this.window = new BrowserWindow({
       icon: dockIconPath,
@@ -49,7 +43,6 @@ class UIService {
 
     this.window.webContents.on("did-finish-load", () => {
       setTimeout(() => {
-
         this.window.webContents.send("request-server-info");
       }, 2000); // Ajusta el retraso si es necesario
     });
@@ -75,7 +68,6 @@ class UIService {
         } else {
           this.window.setSkipTaskbar(true); // Oculta la ventana de la barra de tareas en Windows
         }
-
 
         // Desactiva el atajo Command+Q
         globalShortcut.unregister("CommandOrControl+Q");

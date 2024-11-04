@@ -171,6 +171,7 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
   try {
     const { data, printerName } = req.body;
     const printerInfo = await PrinterService.findPrinterByName(printerName);
+    
     console.log("Impresora encontrada:", printerInfo);
 
     await printTicketWithBuffer(data, printerName);

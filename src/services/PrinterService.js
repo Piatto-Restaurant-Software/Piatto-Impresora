@@ -34,7 +34,7 @@ class PrinterService {
     return new Promise((resolve, reject) => {
       if (os.platform() === "win32") {
         exec(
-          'wmic printer get Name, PrinterStatus, PortName, Default',
+          "wmic printer get Name, PrinterStatus, PortName, Default",
           async (error, stdout, stderr) => {
             if (error) {
               console.error("Error al ejecutar wmic:", error);
@@ -53,7 +53,9 @@ class PrinterService {
                 .map((line) => line.trim())
                 .filter((line) => line)
                 .map(async (line) => {
-                  const parts = line.match(/(TRUE|FALSE)\s+(.+?)\s+([\S]+)\s+(\d+)/);
+                  const parts = line.match(
+                    /(TRUE|FALSE)\s+(.+?)\s+([\S]+)\s+(\d+)/
+                  );
 
                   if (!parts) return null;
 
@@ -67,16 +69,24 @@ class PrinterService {
                     return portName.startsWith("USB");
                   });
 
-                  const isPrinting = await this.checkPrintJobWindows(printerName);
+                  const isPrinting = await this.checkPrintJobWindows(
+                    printerName
+                  );
 
                   let finalStatus;
                   if (isPrinting) {
                     finalStatus = "Imprimiendo";
                   } else if (wmicStatus === "Error") {
                     finalStatus = "Error";
-                  } else if (wmicStatus === "Conectada" && isPhysicallyConnected) {
+                  } else if (
+                    wmicStatus === "Conectada" &&
+                    isPhysicallyConnected
+                  ) {
                     finalStatus = "Conectada";
-                  } else if (wmicStatus === "Inactiva" && isPhysicallyConnected) {
+                  } else if (
+                    wmicStatus === "Inactiva" &&
+                    isPhysicallyConnected
+                  ) {
                     finalStatus = "Inactiva";
                   } else {
                     finalStatus = "Desconectada";
@@ -113,7 +123,9 @@ class PrinterService {
               .map(async (line) => {
                 const nameMatch = line.match(/impresora\s+(\S+)/);
                 const name = nameMatch ? nameMatch[1] : "Desconocido";
-                const status = line.includes("inactiva") ? "Inactiva" : "Conectada";
+                const status = line.includes("inactiva")
+                  ? "Inactiva"
+                  : "Conectada";
                 const isDefault = stdout.includes(
                   `destino por omisión del sistema: ${name}`
                 );

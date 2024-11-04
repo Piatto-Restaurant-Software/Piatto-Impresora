@@ -81,7 +81,7 @@ async function printTicketWithESCBuffer(ticketData, printerName) {
 
       // Imprimir las líneas adicionales del producto, si las hay
       for (let i = 1; i < lineasProducto.length; i++) {
-        await printer.write(`      ${lineasProducto[i]}\n`); 
+        await printer.write(`      ${lineasProducto[i]}\n`);
       }
     }
 
@@ -105,6 +105,7 @@ async function printTicketWithESCBuffer(ticketData, printerName) {
 
     // Generar el archivo binario y enviarlo a la impresora en macOS
     // const outputPath = "ticket_output.bin";
+    
     console.log("Ruta del archivo ticket_output.bin:", outputPath);
     fs.writeFileSync(outputPath, connection.buffer());
     exec(`lp -d "${printerName.replace(/ /g, "_")}" "${outputPath}"`, (err) => {
