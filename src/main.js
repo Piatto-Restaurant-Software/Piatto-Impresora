@@ -96,7 +96,7 @@ function initializeWebSocket() {
           lastPrinterState = currentPrinters;
           broadcastPrinterState(currentPrinters);
         }
-      }, 500);
+      }, 5000);
     });
 
     wss.on("error", (error) => {
