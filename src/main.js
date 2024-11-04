@@ -226,7 +226,14 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
 
     console.log("Impresora encontrada:", printerInfo);
 
-    await printTicketWithBuffer(data, printerName);
+    // Obtener el idioma del encabezado Accept-Language, o usa 'es' como predeterminado
+    const locale = req.headers["accept-language"] || "es";
+    i18n.setLocale(locale); 
+
+        // Cargar traducciones localizadas para el ticket
+        const translations = loadedLocales[locale].precuenta;
+
+    await printTicketWithBuffer(data, printerName, translations);
     res.send({ success: true, message: "Impresión completada exitosamente" });
   } catch (error) {
     console.error("Error al imprimir el ticket:", error);
