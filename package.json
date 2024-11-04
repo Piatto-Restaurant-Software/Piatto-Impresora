@@ -19,7 +19,8 @@
     "files": [
       "src/**/*",
       "node_modules/**/*",
-      "package.json"
+      "package.json",
+      "i18n/**/*"
     ],
     "extraResources": [
       {
@@ -33,6 +34,10 @@
       {
         "from": "src/preload.js",
         "to": "preload.js"
+      },
+      {
+        "from": "src/i18n",
+        "to": "i18n"
       }
     ],
     "mac": {
@@ -51,6 +56,7 @@
     "express": "^4.18.2",
     "fs": "^0.0.1-security",
     "handlebars": "^4.7.8",
+    "i18n": "^0.15.1",
     "node-thermal-printer": "^4.4.3",
     "os": "^0.1.2",
     "path": "^0.12.7",

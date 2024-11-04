@@ -1,10 +1,42 @@
 /* General */
+body, html {
+  overflow-x: hidden;
+  margin: 0;
+  width: 100%;
+}
+
 body {
   font-family: 'Lexend', sans-serif;
   background-color: #282828;
   color: #ffffff;
   margin: 0;
-  /* padding: 20px; */
+}
+
+.container-fluid {
+  max-width: 100vw;
+}
+
+.header-container {
+  padding: 10px;
+}
+
+.printer-container {
+  overflow-y: auto;
+  max-height: 60vh;
+  margin: 0;
+}
+
+.content-container {
+  padding: 0 10px;
+}
+
+.printer-list {
+  padding: 10px;
+}
+
+.row-no-gutters {
+  margin-right: 0;
+  margin-left: 0;
 }
 
 .container-fluid h3 {
@@ -39,11 +71,11 @@ body {
   transition: transform 0.2s;
   position: relative;
   overflow: hidden;
-  padding-top: 20px; /* Aumenta el padding-top para dar más espacio al contenedor de estado */
+  padding-top: 20px; 
 }
 
 .card-body {
-  padding-top: 10px; /* Ajuste para dar espacio a la imagen sin chocar con el estado */
+  padding-top: 10px; 
 }
 
 .card:hover {
@@ -55,7 +87,17 @@ body {
   width: 100px;
   height: auto;
   display: block;
-  margin: 20px auto 0; /* Agrega margen superior para separar de la etiqueta de estado */
+  margin: 20px auto 0; 
+}
+
+/* Dropdown Idiomas */
+.dropdown .dropdown-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.dropdown img {
+  margin-right: 8px;
 }
 
 /* Imagen de la impresora */
@@ -139,4 +181,21 @@ body {
 .btn:hover {
   background-color: #007bff;
   color: #ffffff;
+}
+
+/* Ajustes para el dropdown de idiomas solo con banderas */
+.language-container .dropdown-menu {
+  min-width: 100%; /* Tamaño mínimo del menú */
+  padding: 5px 0; /* Espacio alrededor de las opciones */
+}
+
+.language-container .dropdown-item {
+  display: flex;
+  justify-content: center; /* Centrar la bandera horizontalmente */
+  padding: 5px; /* Espacio interno de cada opción */
+}
+
+.language-container .dropdown-item img {
+  min-width: 40%; /* Tamaño de la bandera */
+  height: auto;
 }

@@ -1,0 +1,23 @@
+{
+  "title": "Printer Management - Piatto",
+  "header": {
+    "main": "Printers",
+    "description": "View the printers you have configured"
+  },
+  "buttons": {
+    "test_print": "Test",
+    "default": "Default",
+    "non_default": "Non-default"
+  },
+  "status": {
+    "disconnected": "Disconnected",
+    "connected": "Connected",
+    "inactive": "Inactive",
+    "printing": "Printing",
+    "error": "Error"
+  },
+  "alerts": {
+    "test_success": "Test print completed successfully.",
+    "test_error": "Error performing test print."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "title": "Gestión de Impresoras - Piatto",
+  "header": {
+    "main": "Impresoras",
+    "description": "Visualiza las impresoras que tienes configuradas"
+  },
+  "buttons": {
+    "test_print": "Probar",
+    "default": "Predeterminada",
+    "non_default": "No predeterminada"
+  },
+  "status": {
+    "disconnected": "Desconectada",
+    "connected": "Conectada",
+    "inactive": "Inactiva",
+    "printing": "Imprimiendo",
+    "error": "Error"
+  },
+  "alerts": {
+    "test_success": "Impresión de prueba completada exitosamente.",
+    "test_error": "Error al realizar la impresión de prueba."
+  }
+}

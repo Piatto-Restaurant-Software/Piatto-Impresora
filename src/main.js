@@ -10,6 +10,8 @@ const PrinterService = require("./services/PrinterService");
 const UIService = require("./services/UIService");
 const { networkInterfaces } = os;
 const WebSocket = require("ws");
+const i18n = require("i18n");
+const fs = require("fs");
 
 let mainWindow;
 let server;
@@ -166,12 +168,59 @@ app.on("will-quit", () => {
   bonjour.unpublishAll(() => bonjour.destroy());
 });
 
+// i18n
+// Verifica si la aplicación está empaquetada y ajusta la ruta de las traducciones
+const localesPath = app.isPackaged
+  ? path.join(process.resourcesPath, "i18n")
+  : path.join(__dirname, "i18n");
+
+// Función para cargar archivos JSON de subcarpetas y combinarlos
+function loadLocaleFiles(locale) {
+  const localeDir = path.join(localesPath, locale);
+  const translations = {};
+
+  // Lee cada archivo JSON en el directorio de un idioma (e.g., en/interface.json)
+  fs.readdirSync(localeDir).forEach((file) => {
+    const filePath = path.join(localeDir, file);
+    const fileContents = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+
+    // Usa el nombre del archivo sin extensión como clave para las traducciones
+    const namespace = path.basename(file, ".json");
+    translations[namespace] = fileContents;
+  });
+
+  return translations;
+}
+
+// Cargar los archivos de todos los idiomas soportados y configurarlos en i18n
+const loadedLocales = {};
+["en", "es"].forEach((locale) => {
+  loadedLocales[locale] = loadLocaleFiles(locale);
+});
+
+// Configuración de i18n
+i18n.configure({
+  locales: ["en", "es"],
+  defaultLocale: "es",
+  objectNotation: true,
+  register: global,
+  updateFiles: false,
+  directoryPermissions: "755",
+});
+
+// Envía las traducciones completas al renderizador cuando se carga la ventana principal
+ipcMain.handle("get-translations", async (_, locale) => {
+  console.log("Idioma solicitado:", locale);
+  return loadedLocales[locale] || loadedLocales["es"]; // En caso de que no exista, envía el español por defecto
+});
+
+
 //Endpoints
 expressApp.post("/api/v1/impresion/test", async (req, res) => {
   try {
     const { data, printerName } = req.body;
     const printerInfo = await PrinterService.findPrinterByName(printerName);
-    
+
     console.log("Impresora encontrada:", printerInfo);
 
     await printTicketWithBuffer(data, printerName);
@@ -197,6 +246,33 @@ expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
         .send({ success: false, message: "Impresora no encontrada" });
     }
 
+    // Obtener el idioma del encabezado Accept-Language, o usa 'es' como predeterminado
+    const locale = req.headers["Accept-Language"] || "es";
+    i18n.setLocale(locale); // Configura el idioma para cargar las traducciones correctas
+    console.log("Locale: ", locale)
+    console.log("Locale configurado en i18n:", i18n.getLocale());
+    console.log("Acceso directo a precuenta:", i18n.__("precuenta"));
+    console.log("Acceso directo a precuenta.pre_bill:", i18n.__("precuenta.pre_bill"));
+
+
+    // Cargar traducciones localizadas para el ticket
+    const translations = {
+      title: i18n.__("precuenta.pre_bill"), 
+      subtotal: i18n.__("precuenta.subtotal"), 
+      total: i18n.__("precuenta.total"), 
+      thankYou: i18n.__("precuenta.thank_you"), 
+      comeAgain: i18n.__("precuenta.come_again"),
+      table: i18n.__("precuenta.table"), 
+      qty: i18n.__("precuenta.qty"), 
+      product: i18n.__("precuenta.product"), 
+      unit_price: i18n.__("precuenta.unit_price"), 
+      product_total: i18n.__("precuenta.product_total") 
+    };
+
+    console.log("Json enviado tra: ", translations)
+    
+
+    // Datos de prueba para el ticket
     const testData = {
       local: { nombre: "Test", telefono: "000-000-0000" },
       venta: { mesa: "0" },
@@ -211,7 +287,8 @@ expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
       cuenta_venta: { subtotal: 1.0, total: 1.0 },
     };
 
-    await printTicketWithBuffer(testData, printerName);
+    // Pasar el ticketData y las traducciones localizadas a la función de impresión
+    await printTicketWithBuffer(testData, printerName, translations);
     res.send({
       success: true,
       message: "Impresión de prueba completada exitosamente",

@@ -11,16 +11,16 @@ const { Printer, InMemory, Style, Align, Drawer } = require("escpos-buffer");
 const outputDir = app.getPath("userData");
 const outputPath = path.join(outputDir, "ticket_output.bin");
 
-async function printTicketWithBuffer(ticketData, printerName) {
+async function printTicketWithBuffer(ticketData, printerName, translations) {
   if (os.platform() === "win32") {
-    await printTicketWithPowerShell(ticketData, printerName);
+    await printTicketWithPowerShell(ticketData, printerName, translations);
   } else {
-    await printTicketWithESCBuffer(ticketData, printerName);
+    await printTicketWithESCBuffer(ticketData, printerName, translations);
   }
 }
 
 // Función para macOS/Linux con escpos-buffer
-async function printTicketWithESCBuffer(ticketData, printerName) {
+async function printTicketWithESCBuffer(ticketData, printerName, translations) {
   try {
     const connection = new InMemory();
     const printer = await Printer.CONNECT("POS-80", connection);
@@ -28,7 +28,7 @@ async function printTicketWithESCBuffer(ticketData, printerName) {
     // Crear contenido del ticket
     await printer.setAlignment(Align.Center);
     await printer.write("\x1B\x21\x30"); // Cambia a texto en negrita o doble ancho, si está disponible
-    await printer.write("PRECUENTA\n");
+    await printer.write("${translations.title}\n");
     await printer.write("\x1B\x21\x00"); // Restaura el estilo normal
 
     await printer.write("=".repeat(48) + "\n"); // Línea separadora debajo
@@ -37,12 +37,12 @@ async function printTicketWithESCBuffer(ticketData, printerName) {
     await printer.setAlignment(Align.Center);
     await printer.write(`${ticketData.local.nombre}\n`);
     await printer.write(`${ticketData.local.telefono}\n`);
-    await printer.write(`Mesa: ${ticketData.venta.mesa}\n`);
+    await printer.write(`${translations.table}: ${ticketData.venta.mesa}\n`);
     await printer.write("=".repeat(48) + "\n"); // Separador de sección
 
     // Encabezado de tabla
     await printer.setAlignment(Align.Left);
-    await printer.write("Cant   Producto                 P.U    Total\n");
+    await printer.write("${translations.qty}   ${translations.product}                 ${translations.unit_price}    ${translations.product_total}\n");
     await printer.write("-".repeat(48) + "\n"); // Línea divisoria
 
     // Imprimir cada pedido
@@ -88,16 +88,16 @@ async function printTicketWithESCBuffer(ticketData, printerName) {
     await printer.write("-".repeat(48) + "\n"); // Separador de subtotal
     await printer.setAlignment(Align.Right);
     await printer.write(
-      `Subtotal: $${ticketData.cuenta_venta.subtotal.toFixed(2)}\n`
+      `${translations.subtotal}: $${ticketData.cuenta_venta.subtotal.toFixed(2)}\n`
     );
     await printer.write(
-      `Total: $${ticketData.cuenta_venta.total.toFixed(2)}\n`
+      `${translations.total}: $${ticketData.cuenta_venta.total.toFixed(2)}\n`
     );
 
     await printer.setAlignment(Align.Center);
     await printer.write("=".repeat(48) + "\n"); // Línea inferior
-    await printer.write("Gracias por su compra\n");
-    await printer.write("¡Vuelva pronto!\n");
+    await printer.write("${translations.thankYou}\n");
+    await printer.write("${translations.comeAgain}\n");
 
     await printer.feed(6); // Alimentar papel
     await printer.cutter();
@@ -105,7 +105,7 @@ async function printTicketWithESCBuffer(ticketData, printerName) {
 
     // Generar el archivo binario y enviarlo a la impresora en macOS
     // const outputPath = "ticket_output.bin";
-    
+
     console.log("Ruta del archivo ticket_output.bin:", outputPath);
     fs.writeFileSync(outputPath, connection.buffer());
     exec(`lp -d "${printerName.replace(/ /g, "_")}" "${outputPath}"`, (err) => {
@@ -118,7 +118,7 @@ async function printTicketWithESCBuffer(ticketData, printerName) {
 }
 
 // Función para Windows con node-thermal-printer
-async function printTicketWithPowerShell(ticketData, printerName) {
+async function printTicketWithPowerShell(ticketData, printerName, translations) {
   try {
     const connection = new InMemory();
     const printer = await Printer.CONNECT("POS-80", connection);
@@ -126,7 +126,7 @@ async function printTicketWithPowerShell(ticketData, printerName) {
     // Crear contenido del ticket
     await printer.setAlignment(Align.Center);
     await printer.write("\x1B\x21\x30"); // Cambia a texto en negrita o doble ancho, si está disponible
-    await printer.write("PRECUENTA\n");
+    await printer.write("${translations.title}\n");
     await printer.write("\x1B\x21\x00"); // Restaura el estilo normal
 
     await printer.write("=".repeat(48) + "\n"); // Línea separadora debajo
@@ -135,7 +135,7 @@ async function printTicketWithPowerShell(ticketData, printerName) {
     await printer.setAlignment(Align.Center);
     await printer.write(`${ticketData.local.nombre}\n`);
     await printer.write(`${ticketData.local.telefono}\n`);
-    await printer.write(`Mesa: ${ticketData.venta.mesa}\n`);
+    await printer.write(`${translations.table}: ${ticketData.venta.mesa}\n`);
     await printer.write("=".repeat(48) + "\n"); // Separador de sección
 
     // Imprimir cada pedido
@@ -181,15 +181,15 @@ async function printTicketWithPowerShell(ticketData, printerName) {
     await printer.write("-".repeat(48) + "\n");
     await printer.setAlignment(Align.Right);
     await printer.write(
-      `Subtotal: $${ticketData.cuenta_venta.subtotal.toFixed(2)}\n`
+      `${translations.subtotal}: $${ticketData.cuenta_venta.subtotal.toFixed(2)}\n`
     );
     await printer.write(
-      `Total: $${ticketData.cuenta_venta.total.toFixed(2)}\n`
+      `${translations.total}: $${ticketData.cuenta_venta.total.toFixed(2)}\n`
     );
     await printer.setAlignment(Align.Center);
     await printer.write("=".repeat(48) + "\n");
-    await printer.write("Gracias por su compra\n");
-    await printer.write("¡Vuelva pronto!\n");
+    await printer.write("${translations.thankYou}\n");
+    await printer.write("${translations.comeAgain}\n");
 
     await printer.feed(6); // Alimentar papel
     await printer.cutter();
