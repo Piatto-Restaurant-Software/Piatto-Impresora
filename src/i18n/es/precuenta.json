@@ -8,5 +8,14 @@
   "qty": "Cant.",
   "product": "Producto",
   "unit_price": "P.U.",
-  "product_total": "Total"
+  "product_total": "Total",
+  "client": "Cliente",
+  "seller": "Vendedor",
+  "date": "Fecha",
+  "payments": "Pagos",
+  "credit": "Crédito",
+  "num_installments": "Número de cuotas",
+  "discount": "Descuento",
+  "full_ticket": "Ticket",
+  "order_slip": "Comanda"
 }

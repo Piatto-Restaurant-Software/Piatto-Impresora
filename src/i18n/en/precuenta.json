@@ -8,5 +8,14 @@
   "qty": "Qty",
   "product": "Product",
   "unit_price": "U.P.",
-  "product_total": "Total"
+  "product_total": "Total",
+  "client": "Client",
+  "seller": "Seller",
+  "date": "Date",
+  "payments": "Payments",
+  "credit": "Credit",
+  "num_installments": "Number of installments",
+  "discount": "Discount",
+  "full_ticket": "Ticket",
+  "order_slip": "Order Slip"
 }

@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, globalShortcut } = require("electron");
 const cors = require("cors");
 const express = require("express");
 const bodyParser = require("body-parser");
-const { printTicketWithBuffer } = require("./services/pdfUtil");
+const { printTicket } = require("./services/pdfUtil");
 const os = require("os");
 const path = require("path");
 const bonjour = require("bonjour")();
@@ -221,19 +221,20 @@ ipcMain.handle("get-translations", async (_, locale) => {
 //Endpoints
 expressApp.post("/api/v1/impresion/test", async (req, res) => {
   try {
-    const { data, printerName } = req.body;
+    const { data, printerName, ticketType } = req.body;
     const printerInfo = await PrinterService.findPrinterByName(printerName);
 
     console.log("Impresora encontrada:", printerInfo);
 
     // Obtener el idioma del encabezado Accept-Language, o usa 'es' como predeterminado
     const locale = req.headers["accept-language"] || "es";
-    i18n.setLocale(locale); 
+    i18n.setLocale(locale);
 
-        // Cargar traducciones localizadas para el ticket
-        const translations = loadedLocales[locale].precuenta;
+    // Cargar traducciones localizadas para el ticket
+    // const translations = loadedLocales[locale];
+    const translations = loadedLocales[locale].precuenta;
 
-    await printTicketWithBuffer(data, printerName, translations);
+    await printTicket(data, printerName, translations, ticketType);
     res.send({ success: true, message: "Impresión completada exitosamente" });
   } catch (error) {
     console.error("Error al imprimir el ticket:", error);
@@ -244,6 +245,7 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
     });
   }
 });
+
 
 expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
   try {
@@ -287,7 +289,7 @@ expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
     };
 
     // Pasar el ticketData y las traducciones localizadas a la función de impresión
-    await printTicketWithBuffer(testData, printerName, translations);
+    await printTicket(testData, printerName, translations);
     res.send({
       success: true,
       message: "Impresión de prueba completada exitosamente",
