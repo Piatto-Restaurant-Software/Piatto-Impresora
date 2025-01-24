@@ -149,6 +149,136 @@ async function designTestTicket(printer, testData, translations) {
   await printer.cutter();
 }
 
+/**
+ * Impreme Ticket de cierre de caja Resumido Windows
+ */
+async function designTicketCierreWindows(printer, ticketData, translations) {
+  // Función para validar valores
+  const getValue = (obj, key, defaultValue = "N/A") =>
+    obj && obj[key] !== undefined ? obj[key] : defaultValue;
+
+  // Función para ajustar texto con un ancho específico
+  const wrapText = (text, width) => {
+    const words = text.split(" ");
+    const lines = [];
+    let currentLine = "";
+
+    for (const word of words) {
+      if ((currentLine + word).length > width) {
+        lines.push(currentLine.trim());
+        currentLine = word + " ";
+      } else {
+        currentLine += word + " ";
+      }
+    }
+    if (currentLine.trim()) lines.push(currentLine.trim());
+    return lines;
+  };
+
+  // Encabezado del ticket
+  await printer.feed(1);
+  await printer.setAlignment(Align.Center);
+  await printer.write("\x1B\x21\x30"); // Negrita y texto grande
+  await printer.write(`${translations.full_ticket}\n`);
+  await printer.write("\x1B\x21\x00"); // Texto normal
+  await printer.write("=".repeat(48) + "\n");
+
+  // Información del local
+  const local = ticketData.local || {};
+  await printer.write(`${getValue(local, "nombre")}\n`);
+  await printer.write(`${getValue(local, "telefono")}\n`);
+  if (local.nit) await printer.write(`NIT: ${local.nit}\n`);
+  if (local.encabezado_ticket) await printer.write(`${local.encabezado_ticket}\n`);
+  await printer.write("=".repeat(48) + "\n");
+
+  // Información del cliente y la venta
+  const venta = ticketData.venta || {};
+  const cuentaVenta = ticketData.cuenta_venta || {};
+  await printer.setAlignment(Align.Left);
+  if (cuentaVenta.nombre_cliente_generico) {
+    await printer.write(`${translations.client}: ${cuentaVenta.nombre_cliente_generico}\n`);
+  }
+  await printer.write(`${translations.table}: ${getValue(venta, "mesa")}\n`);
+  const usuario = ticketData.usuario || {};
+  await printer.write(`${translations.seller}: ${usuario.nombre} ${usuario.apellidos}\n`);
+  await printer.write(`${translations.date}: ${new Date(getValue(venta, "fin_venta")).toLocaleString()}\n`);
+  await printer.write("=".repeat(48) + "\n");
+
+  // Encabezado de productos
+  await printer.write(
+    `${translations.qty}   ${translations.product}                 ${translations.unit_price}    ${translations.product_total}\n`
+  );
+  await printer.write("-".repeat(48) + "\n");
+
+  // Lista de productos
+  for (const pedido of ticketData.pedidos || []) {
+    const cantidad = pedido.cantidad.toString().padEnd(5);
+    const precioUnitario = `$${parseFloat(pedido.precio_unitario).toFixed(2)}`.padStart(6);
+    const precioTotal = `$${parseFloat(pedido.precio_total).toFixed(2)}`.padStart(6);
+
+    const producto = getValue(pedido.producto_presentacion, "nombre", "Producto desconocido");
+    const lineasProducto = wrapText(producto, 20);
+
+    // Imprimir la primera línea del producto con cantidades y precios
+    await printer.write(
+      `${cantidad}${lineasProducto[0].padEnd(20)}     ${precioUnitario}    ${precioTotal}\n`
+    );
+
+    // Imprimir líneas adicionales del producto si es necesario
+    for (let i = 1; i < lineasProducto.length; i++) {
+      await printer.write(`      ${lineasProducto[i]}\n`);
+    }
+  }
+
+  await printer.write("-".repeat(48) + "\n");
+
+  // Totales y descuentos
+  await printer.setAlignment(Align.Right);
+  await printer.write(`${translations.subtotal}: $${parseFloat(getValue(cuentaVenta, "subtotal", 0)).toFixed(2)}\n`);
+  if (cuentaVenta.descuento) {
+    await printer.write(`${translations.discount}: $${parseFloat(cuentaVenta.descuento).toFixed(2)}\n`);
+  }
+  await printer.write(`${translations.total}: $${parseFloat(getValue(cuentaVenta, "total", 0)).toFixed(2)}\n`);
+
+  // Información de pagos
+  if (ticketData.pagos && ticketData.pagos.length > 0) {
+    await printer.write("=".repeat(48) + "\n");
+    await printer.write(`${translations.payments}\n`);
+    for (const pago of ticketData.pagos) {
+      await printer.write(
+        `${pago.tipo_pago.nombre}: $${parseFloat(pago.monto).toFixed(2)} ${
+          pago.tarjeta ? `(${pago.tarjeta})` : ""
+        }\n`
+      );
+    }
+
+    // Abrir gaveta si hay pago en efectivo
+    const hasTipoVentaId1 = ticketData.pagos.some((pago) => pago.tipo_pago.id === 1);
+    if (hasTipoVentaId1) {
+      await printer.drawer(Drawer.First);
+    }
+  }
+
+  // Información de crédito (si existe)
+  if (ticketData.credito) {
+    await printer.write("=".repeat(48) + "\n");
+    await printer.write(`${translations.credit}: $${parseFloat(ticketData.credito.total_credito).toFixed(2)}\n`);
+    await printer.write(`${translations.num_installments}: ${ticketData.credito.num_cuotas}\n`);
+  }
+
+  // Pie de página del ticket
+  await printer.setAlignment(Align.Center);
+  await printer.write("=".repeat(48) + "\n");
+  if (local.pie_pagina_ticket) {
+    await printer.write(`${local.pie_pagina_ticket}\n`);
+  }
+  await printer.write(`${translations.thank_you}\n`);
+  await printer.write(`${translations.come_again}\n`);
+
+  await printer.feed(6); // Alimentar papel
+  await printer.cutter();
+}
+
 
 /**
  * Imprime un ticket en Windows
@@ -169,6 +299,8 @@ async function printTicketWindows(
       await designPreBillWindows(printer, ticketData, translations);
     } else if (ticketType === "Comanda") {
       await designOrderSlipWindows(printer, ticketData, translations);
+    } else if (ticketType === "Cierre"){
+      designTicketCierreWindows(printer, ticketData, translations);
     }
 
     fs.writeFileSync(outputPath, connection.buffer());
