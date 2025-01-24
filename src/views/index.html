@@ -159,7 +159,7 @@
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Accept-Language": currentLanguage, // Se envía el idioma actual aquí
+                "Accept-Language": currentLanguage, 
               },
               body: JSON.stringify({ printerName }),
             }
@@ -218,7 +218,7 @@
                 <img src="${
                   window.paths.assetsPath
                 }/impresora.png" alt="Impresora" class="printer-image mb-3">
-                <h5 class="card-title mt-2">${printer.name}</h5>
+                <h5 class="card-title mt-2">${printer.description}</h5>
                 <p class="card-text">${
                   printer.default
                     ? translations.interfaz.buttons.default

@@ -26,7 +26,7 @@ function logToRenderer(type, message) {
   }
 }
 
-console.log("Attempting to start Express server (outside whenReady)...");
+
 
 const expressApp = express();
 expressApp.use(cors());
@@ -36,17 +36,13 @@ expressApp.use("/assets", express.static("assets"));
 // Endpoint de prueba para verificar que el servidor está activo
 expressApp.get("/api/v1/status", (req, res) => {
   res.send({ status: "Server is running" });
-  console.log("Status endpoint hit");
+
 });
 
 // Inicia el servidor Express
 if (!server) {
   server = expressApp.listen(3001, "0.0.0.0", () => {
-    console.log(
-      "Express server has started on IP:",
-      getLocalIPAddress(),
-      "and port 3001"
-    );
+
     logToRenderer(
       "info",
       `Express server has started on IP: ${getLocalIPAddress()} and port 3001`
@@ -66,13 +62,13 @@ function publishBonjourService(retries = 5) {
   });
 
   bonjourService.on("up", () => {
-    console.log("Bonjour service published successfully");
+
   });
 
   bonjourService.on("error", (err) => {
     console.error("Error publishing Bonjour service:", err.message);
     if (retries > 0) {
-      console.log(`Retrying Bonjour publish... (${retries} retries left)`);
+
       setTimeout(() => publishBonjourService(retries - 1), 1000);
     }
   });
@@ -82,14 +78,16 @@ function publishBonjourService(retries = 5) {
 function initializeWebSocket() {
   if (!wss) {
     wss = new WebSocket.Server({ port });
-    console.log(`WebSocket iniciado en ws://localhost:${port}`);
+
 
     wss.on("connection", (ws) => {
-      console.log("Cliente WebSocket conectado");
+
       sendPrinterState(ws);
 
       setInterval(async () => {
         const currentPrinters = await PrinterService.getAllConnectedPrinters();
+
+
         if (
           JSON.stringify(currentPrinters) !== JSON.stringify(lastPrinterState)
         ) {
@@ -146,8 +144,24 @@ app.whenReady().then(() => {
 });
 
 app.on("ready", () => {
+    // Configurar inicio automático
+    app.setLoginItemSettings({
+      openAtLogin: true,
+      path: app.getPath("exe"), // Ruta al ejecutable
+    });
+    
+  const wasLaunchedAtLogin = app.getLoginItemSettings().wasOpenedAtLogin;
   console.log("App is ready.");
+  if (wasLaunchedAtLogin) {
+    console.log("Iniciado automáticamente, manteniendo en segundo plano");
+    uiService.createTray(); // Solo crea la bandeja del sistema
+  } else {
+    console.log("Iniciado manualmente, mostrando la ventana");
+    uiService.createMainWindow(); // Crea la ventana principal
+    uiService.createTray(); // También muestra la bandeja
+  }
 });
+
 
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
@@ -213,28 +227,53 @@ i18n.configure({
 
 // Envía las traducciones completas al renderizador cuando se carga la ventana principal
 ipcMain.handle("get-translations", async (_, locale) => {
-  console.log("Idioma solicitado:", locale);
-  return loadedLocales[locale] || loadedLocales["es"]; 
+  return loadedLocales[locale] || loadedLocales["es"];
 });
-
 
 //Endpoints
 expressApp.post("/api/v1/impresion/test", async (req, res) => {
   try {
     const { data, printerName, ticketType } = req.body;
-    const printerInfo = await PrinterService.findPrinterByName(printerName);
 
-    console.log("Impresora encontrada:", printerInfo);
+    // Manejar los dos casos de printerName
+    let printerNameStr;
+
+    if (typeof printerName === "string") {
+      printerNameStr = printerName;
+    } else if (typeof printerName === "object" && printerName.nombre) {
+      printerNameStr = printerName.nombre;
+    } else {
+      throw new Error("Formato de printerName inválido");
+    }
+
+    // Validar que data no esté vacío
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+      throw new Error("El campo data está vacío");
+    }
+
+    // Determinar el elemento a imprimir según el tipo de data
+    let dataToPrint;
+    if (Array.isArray(data)) {
+      dataToPrint = data[0];
+    } else if (typeof data === "object") {
+      dataToPrint = data;
+    } else {
+      throw new Error("Formato de data inválido");
+    }
+
+    const printerInfo = await PrinterService.getNamePrinter(printerNameStr);
+
+
 
     // Obtener el idioma del encabezado Accept-Language, o usa 'es' como predeterminado
     const locale = req.headers["accept-language"] || "es";
     i18n.setLocale(locale);
 
     // Cargar traducciones localizadas para el ticket
-    // const translations = loadedLocales[locale];
     const translations = loadedLocales[locale].precuenta;
 
-    await printTicket(data, printerName, translations, ticketType);
+    await printTicket(dataToPrint, printerInfo, translations, ticketType);
+
     res.send({ success: true, message: "Impresión completada exitosamente" });
   } catch (error) {
     console.error("Error al imprimir el ticket:", error);
@@ -245,7 +284,6 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
     });
   }
 });
-
 
 expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
   try {
@@ -260,18 +298,16 @@ expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
 
     // Obtener el idioma del encabezado Accept-Language, o usa 'es' como predeterminado
     const locale = req.headers["accept-language"] || "es";
-    i18n.setLocale(locale); 
-    console.log("Locale: ", req.headers)
-    console.log("Locale configurado en i18n:", i18n.getLocale());
-    console.log("Acceso directo a precuenta:", i18n.__("precuenta"));
-    console.log("Acceso directo a precuenta.pre_bill:", i18n.__("precuenta.pre_bill"));
+    i18n.setLocale(locale);
+
+
+
 
 
     // Cargar traducciones localizadas para el ticket
     const translations = loadedLocales[locale].precuenta;
 
-    console.log("Json enviado tra: ", translations)
-    
+
 
     // Datos de prueba para el ticket
     const testData = {

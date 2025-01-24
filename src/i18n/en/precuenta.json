@@ -17,5 +17,7 @@
   "num_installments": "Number of installments",
   "discount": "Discount",
   "full_ticket": "Ticket",
-  "order_slip": "Order Slip"
+  "order_slip": "Order Slip",
+  "waiter": "Waiter",
+  "area": "Area"
 }

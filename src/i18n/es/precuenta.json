@@ -17,5 +17,7 @@
   "num_installments": "Número de cuotas",
   "discount": "Descuento",
   "full_ticket": "Ticket",
-  "order_slip": "Comanda"
+  "order_slip": "Comanda",
+  "waiter": "Mesero",
+  "area": "Area"
 }
