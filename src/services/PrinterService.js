@@ -32,78 +32,7 @@ class PrinterService {
   static getNamePrinter(target) {
     return new Promise((resolve, reject) => {
       if (os.platform() === "win32") {
-        exec(
-          "wmic printer get Name, PrinterStatus, PortName, Default",
-          async (error, stdout, stderr) => {
-            if (error) {
-              console.error("Error al ejecutar wmic:", error);
-              return reject(
-                `Error al obtener impresoras en Windows: ${error.message}`
-              );
-            }
-
-
-            const usbDevices = usb.getDeviceList();
-
-            const printers = await Promise.all(
-              stdout
-                .split("\n")
-                .slice(1)
-                .map((line) => line.trim())
-                .filter((line) => line)
-                .map(async (line) => {
-                  const parts = line.match(
-                    /(TRUE|FALSE)\s+(.+?)\s+([\S]+)\s+(\d+)/
-                  );
-
-                  if (!parts) return null;
-
-                  const isDefault = parts[1] === "TRUE";
-                  const printerName = parts[2].trim();
-                  const portName = parts[3].trim();
-                  const wmicStatus = this.parseWindowsStatus(parts[4]);
-
-                  const isPhysicallyConnected = usbDevices.some((device) => {
-                    const desc = device.deviceDescriptor;
-                    return portName.startsWith("USB");
-                  });
-
-                  const isPrinting = await this.checkPrintJobWindows(
-                    printerName
-                  );
-
-                  let finalStatus;
-                  if (isPrinting) {
-                    finalStatus = "Imprimiendo";
-                  } else if (wmicStatus === "Error") {
-                    finalStatus = "Error";
-                  } else if (
-                    wmicStatus === "Conectada" &&
-                    isPhysicallyConnected
-                  ) {
-                    finalStatus = "Conectada";
-                  } else if (
-                    wmicStatus === "Inactiva" &&
-                    isPhysicallyConnected
-                  ) {
-                    finalStatus = "Inactiva";
-                  } else {
-                    finalStatus = "Desconectada";
-                  }
-
-                  return {
-                    name: printerName,
-                    status: finalStatus,
-                    default: isDefault,
-                    physicallyConnected: isPhysicallyConnected,
-                    port: portName,
-                  };
-                })
-            );
-
-            resolve(printers.filter(Boolean));
-          }
-        );
+        resolve(target ? target : null);
       } else if (os.platform() === "darwin") {
         exec("lpstat -l -p", async (error, stdout, stderr) => {
           if (error) {
@@ -147,64 +76,49 @@ class PrinterService {
     return new Promise((resolve, reject) => {
       if (os.platform() === "win32") {
         exec(
-          "wmic printer get Name, PrinterStatus, PortName, Default",
+          'powershell -Command "Get-Printer | Format-Table Name, PortName, Default -AutoSize | Out-String"',
           async (error, stdout, stderr) => {
             if (error) {
-              console.error("Error al ejecutar wmic:", error);
+              console.error("Error al ejecutar PowerShell:", error);
               return reject(
                 `Error al obtener impresoras en Windows: ${error.message}`
               );
             }
-
-
+        
             const usbDevices = usb.getDeviceList();
-
+        
             const printers = await Promise.all(
               stdout
                 .split("\n")
-                .slice(1)
+                .slice(3) // Omitir encabezados y líneas vacías
                 .map((line) => line.trim())
-                .filter((line) => line)
+                .filter((line) => line) // Filtrar líneas vacías
                 .map(async (line) => {
-                  const parts = line.match(
-                    /(TRUE|FALSE)\s+(.+?)\s+([\S]+)\s+(\d+)/
-                  );
-
-                  if (!parts) return null;
-
-                  const isDefault = parts[1] === "TRUE";
-                  const printerName = parts[2].trim();
-                  const portName = parts[3].trim();
-                  const wmicStatus = this.parseWindowsStatus(parts[4]);
-
+                  console.log("line", line); // Verificar cada línea
+                  const parts = line.match(/^(.+?)\s{2,}(.+?)\s{2,}(.+)$/); // Captura columnas con separadores
+        
+                  if (!parts) return null; // Si no se pueden capturar, descartar la línea
+        
+                  const printerName = parts[1].trim();
+                  const portName = parts[2].trim();
+                  const isDefault = parts[3].trim() === "True";
+        
                   const isPhysicallyConnected = usbDevices.some((device) => {
                     const desc = device.deviceDescriptor;
                     return portName.startsWith("USB");
                   });
-
-                  const isPrinting = await this.checkPrintJobWindows(
-                    printerName
-                  );
-
+        
+                  const isPrinting = await this.checkPrintJobWindows(printerName);
+        
                   let finalStatus;
                   if (isPrinting) {
                     finalStatus = "Imprimiendo";
-                  } else if (wmicStatus === "Error") {
-                    finalStatus = "Error";
-                  } else if (
-                    wmicStatus === "Conectada" &&
-                    isPhysicallyConnected
-                  ) {
+                  } else if (isPhysicallyConnected) {
                     finalStatus = "Conectada";
-                  } else if (
-                    wmicStatus === "Inactiva" &&
-                    isPhysicallyConnected
-                  ) {
-                    finalStatus = "Inactiva";
                   } else {
                     finalStatus = "Desconectada";
                   }
-
+        
                   return {
                     name: printerName,
                     status: finalStatus,
@@ -214,7 +128,7 @@ class PrinterService {
                   };
                 })
             );
-
+        
             resolve(printers.filter(Boolean));
           }
         );

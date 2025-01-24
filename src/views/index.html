@@ -218,7 +218,7 @@
                 <img src="${
                   window.paths.assetsPath
                 }/impresora.png" alt="Impresora" class="printer-image mb-3">
-                <h5 class="card-title mt-2">${printer.description}</h5>
+                <h5 class="card-title mt-2">${(printer.description != undefined) ? printer.description: printer.name}</h5>
                 <p class="card-text">${
                   printer.default
                     ? translations.interfaz.buttons.default

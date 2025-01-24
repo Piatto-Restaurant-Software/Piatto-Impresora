@@ -12,6 +12,8 @@ const { networkInterfaces } = os;
 const WebSocket = require("ws");
 const i18n = require("i18n");
 const fs = require("fs");
+const dgram = require("dgram");
+
 
 let mainWindow;
 let server;
@@ -19,6 +21,7 @@ let wss;
 const port = 3002;
 let lastPrinterState = [];
 const uiService = new UIService();
+const udpServer = dgram.createSocket("udp4");
 
 function logToRenderer(type, message) {
   if (uiService.window) {
@@ -48,6 +51,7 @@ if (!server) {
       `Express server has started on IP: ${getLocalIPAddress()} and port 3001`
     );
     publishBonjourService();
+    startUDPBroadcast();
   });
 }
 
@@ -62,7 +66,6 @@ function publishBonjourService(retries = 5) {
   });
 
   bonjourService.on("up", () => {
-
   });
 
   bonjourService.on("error", (err) => {
@@ -71,6 +74,28 @@ function publishBonjourService(retries = 5) {
 
       setTimeout(() => publishBonjourService(retries - 1), 1000);
     }
+  });
+}
+
+function startUDPBroadcast() {
+  const localIP = getLocalIPAddress();
+  const message = JSON.stringify({
+    ip: localIP,
+    port: 3001,
+    serviceName: "POS-Impresora",
+  });
+
+  const udpServer = dgram.createSocket("udp4");
+
+  udpServer.bind(() => {
+    udpServer.setBroadcast(true);
+    setInterval(() => {
+      udpServer.send(message, 0, message.length, 12345, "255.255.255.255");
+    }, 1000); // Envía el mensaje cada segundo
+  });
+
+  udpServer.on("error", (err) => {
+    console.error("Error en el servidor UDP:", err.message);
   });
 }
 
@@ -86,7 +111,6 @@ function initializeWebSocket() {
 
       setInterval(async () => {
         const currentPrinters = await PrinterService.getAllConnectedPrinters();
-
 
         if (
           JSON.stringify(currentPrinters) !== JSON.stringify(lastPrinterState)
@@ -117,15 +141,30 @@ function broadcastPrinterState(printerState) {
 
 function getLocalIPAddress() {
   const nets = networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name]) {
+  
+  // Priorizar la interfaz Ethernet
+  for (const [name, interfaces] of Object.entries(nets)) {
+    if (name.toLowerCase().includes("ethernet")) {
+      for (const net of interfaces) {
+        if (net.family === "IPv4" && !net.internal) {
+          return net.address;
+        }
+      }
+    }
+  }
+
+  // Si no encuentra Ethernet, toma la primera IPv4 no interna
+  for (const interfaces of Object.values(nets)) {
+    for (const net of interfaces) {
       if (net.family === "IPv4" && !net.internal) {
         return net.address;
       }
     }
   }
+
   return "127.0.0.1";
 }
+
 
 ipcMain.handle("request-server-info", async () => {
   const localIP = getLocalIPAddress();
@@ -133,33 +172,32 @@ ipcMain.handle("request-server-info", async () => {
 });
 
 app.whenReady().then(() => {
-  initializeWebSocket();
-  uiService.createMainWindow();
-  uiService.createTray();
+  // Configurar inicio automático
+  app.setLoginItemSettings({
+    openAtLogin: true,
+    path: app.getPath("exe"),
+  });
 
+  const wasLaunchedAtLogin = app.getLoginItemSettings().wasOpenedAtLogin;
+
+  if (wasLaunchedAtLogin) {
+    uiService.createTray(); // Solo crea la bandeja del sistema
+  } else {
+    uiService.createMainWindow(); // Crea la ventana principal
+    uiService.createTray(); // También muestra la bandeja
+  }
+
+  // Configurar WebSocket y atajos globales
+  initializeWebSocket();
   globalShortcut.register("CommandOrControl+Q", () => {
     uiService.isQuitting = true;
     app.quit();
   });
 });
 
+
 app.on("ready", () => {
-    // Configurar inicio automático
-    app.setLoginItemSettings({
-      openAtLogin: true,
-      path: app.getPath("exe"), // Ruta al ejecutable
-    });
-    
-  const wasLaunchedAtLogin = app.getLoginItemSettings().wasOpenedAtLogin;
   console.log("App is ready.");
-  if (wasLaunchedAtLogin) {
-    console.log("Iniciado automáticamente, manteniendo en segundo plano");
-    uiService.createTray(); // Solo crea la bandeja del sistema
-  } else {
-    console.log("Iniciado manualmente, mostrando la ventana");
-    uiService.createMainWindow(); // Crea la ventana principal
-    uiService.createTray(); // También muestra la bandeja
-  }
 });
 
 

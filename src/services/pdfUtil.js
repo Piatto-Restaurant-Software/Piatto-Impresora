@@ -172,9 +172,10 @@ async function printTicketWindows(
     }
 
     fs.writeFileSync(outputPath, connection.buffer());
+    console.log("printerName:", printerName);
     const formattedPrinterName = printerName.replace(/ /g, "_");
-    const printCommand = `cmd.exe /c "print /D:\\\\localhost\\${formattedPrinterName} ${outputPath}"`;
-
+    const printCommand = `cmd.exe /c "print /D:\\\\localhost\\"${printerName}" ${outputPath}"`;
+    console.log("printCommands:", printCommand);
     exec(printCommand, (err, stdout, stderr) => {
       if (err) {
         console.error("Error al imprimir en Windows:", err);
@@ -352,6 +353,7 @@ async function designPreBillWindows(printer, ticketData, translations) {
 async function designFullTicket(printer, ticketData, translations) {
   console.log("Ticket Full -> ",ticketData)
   // Encabezado del ticket
+  await printer.feed(1);
   await printer.setAlignment(Align.Center);
   await printer.write("\x1B\x21\x30"); // Texto en negrita o tamaño mayor
   await printer.write(`${translations.full_ticket}\n`);
