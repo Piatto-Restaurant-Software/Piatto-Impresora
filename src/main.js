@@ -90,7 +90,8 @@ function startUDPBroadcast() {
   udpServer.bind(() => {
     udpServer.setBroadcast(true);
     setInterval(() => {
-      udpServer.send(message, 0, message.length, 12345, "255.255.255.255");
+      const subnetBroadcast = localIP.replace(/\d+$/, "255");
+      udpServer.send(message, 0, message.length, 12345, subnetBroadcast);
     }, 1000); // Envía el mensaje cada segundo
   });
 
