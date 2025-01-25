@@ -13,6 +13,7 @@
   "seller": "Seller",
   "date": "Date",
   "payments": "Payments",
+  "tip": "Tip",
   "credit": "Credit",
   "num_installments": "Number of installments",
   "discount": "Discount",

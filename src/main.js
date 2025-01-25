@@ -3,6 +3,7 @@ const cors = require("cors");
 const express = require("express");
 const bodyParser = require("body-parser");
 const { printTicket } = require("./services/pdfUtil");
+const printQueue  = require("./services/PrintQueue");
 const os = require("os");
 const path = require("path");
 const bonjour = require("bonjour")();
@@ -13,7 +14,6 @@ const WebSocket = require("ws");
 const i18n = require("i18n");
 const fs = require("fs");
 const dgram = require("dgram");
-
 
 let mainWindow;
 let server;
@@ -29,8 +29,6 @@ function logToRenderer(type, message) {
   }
 }
 
-
-
 const expressApp = express();
 expressApp.use(cors());
 expressApp.use(bodyParser.json());
@@ -39,13 +37,11 @@ expressApp.use("/assets", express.static("assets"));
 // Endpoint de prueba para verificar que el servidor está activo
 expressApp.get("/api/v1/status", (req, res) => {
   res.send({ status: "Server is running" });
-
 });
 
 // Inicia el servidor Express
 if (!server) {
   server = expressApp.listen(3001, "0.0.0.0", () => {
-
     logToRenderer(
       "info",
       `Express server has started on IP: ${getLocalIPAddress()} and port 3001`
@@ -65,13 +61,11 @@ function publishBonjourService(retries = 5) {
     txt: { info: "Servicio de impresión para POS" },
   });
 
-  bonjourService.on("up", () => {
-  });
+  bonjourService.on("up", () => {});
 
   bonjourService.on("error", (err) => {
     console.error("Error publishing Bonjour service:", err.message);
     if (retries > 0) {
-
       setTimeout(() => publishBonjourService(retries - 1), 1000);
     }
   });
@@ -104,9 +98,7 @@ function initializeWebSocket() {
   if (!wss) {
     wss = new WebSocket.Server({ port });
 
-
     wss.on("connection", (ws) => {
-
       sendPrinterState(ws);
 
       setInterval(async () => {
@@ -141,7 +133,7 @@ function broadcastPrinterState(printerState) {
 
 function getLocalIPAddress() {
   const nets = networkInterfaces();
-  
+
   // Priorizar la interfaz Ethernet
   for (const [name, interfaces] of Object.entries(nets)) {
     if (name.toLowerCase().includes("ethernet")) {
@@ -164,7 +156,6 @@ function getLocalIPAddress() {
 
   return "127.0.0.1";
 }
-
 
 ipcMain.handle("request-server-info", async () => {
   const localIP = getLocalIPAddress();
@@ -195,11 +186,9 @@ app.whenReady().then(() => {
   });
 });
 
-
 app.on("ready", () => {
   console.log("App is ready.");
 });
-
 
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
@@ -299,29 +288,38 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
       throw new Error("Formato de data inválido");
     }
 
-    const printerInfo = await PrinterService.getNamePrinter(printerNameStr);
+    // Agregar el trabajo de impresión a la cola con la prioridad basada en el tipo de ticket
+    printQueue.addJob(async () => {
+      const printerInfo = await PrinterService.getNamePrinter(printerNameStr);
 
+      // Obtener el idioma del encabezado Accept-Language, o usa 'es' como predeterminado
+      const locale = req.headers["accept-language"] || "es";
+      i18n.setLocale(locale);
 
+      // Cargar traducciones localizadas para el ticket
+      const translations = loadedLocales[locale]?.[ticketType.toLowerCase()] || {};
 
-    // Obtener el idioma del encabezado Accept-Language, o usa 'es' como predeterminado
-    const locale = req.headers["accept-language"] || "es";
-    i18n.setLocale(locale);
+      // Ejecutar la impresión
+      await printTicket(dataToPrint, printerInfo, translations, ticketType);
 
-    // Cargar traducciones localizadas para el ticket
-    const translations = loadedLocales[locale].precuenta;
+      console.log(`Impresión completada: ${ticketType}`);
+    }, ticketType);
 
-    await printTicket(dataToPrint, printerInfo, translations, ticketType);
-
-    res.send({ success: true, message: "Impresión completada exitosamente" });
+    // Respuesta inmediata al cliente
+    res.send({
+      success: true,
+      message: `Trabajo de impresión encolado: ${ticketType}`,
+    });
   } catch (error) {
-    console.error("Error al imprimir el ticket:", error);
+    console.error("Error al encolar la impresión:", error);
     res.status(500).send({
       success: false,
-      message: "Error al imprimir el ticket",
+      message: "Error al encolar la impresión",
       error: error.message,
     });
   }
 });
+
 
 expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
   try {
@@ -338,14 +336,8 @@ expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
     const locale = req.headers["accept-language"] || "es";
     i18n.setLocale(locale);
 
-
-
-
-
     // Cargar traducciones localizadas para el ticket
     const translations = loadedLocales[locale].precuenta;
-
-
 
     // Datos de prueba para el ticket
     const testData = {

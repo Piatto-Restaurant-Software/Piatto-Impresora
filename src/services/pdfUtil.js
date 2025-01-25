@@ -395,6 +395,9 @@ async function designPreBillWindows(printer, ticketData, translations) {
   await printer.write(
     `${translations.total}: $${ticketData.total.toFixed(2)}\n`
   );
+  await printer.write(
+    `${translations.tip}: $${ticketData.propina_predeterminada.toFixed(2)}\n`
+  );
   await printer.setAlignment(Align.Center);
   await printer.write("=".repeat(48) + "\n");
   await printer.write(`${ticketData.encabezado_ticket}\n`);
@@ -503,6 +506,9 @@ async function designFullTicket(printer, ticketData, translations) {
       )}\n`
     );
   }
+  await printer.write(
+    `${translations.tip}: $${ticketData.propina_predeterminada.toFixed(2)}\n`
+  );
   await printer.write(
     `${translations.total}: $${ticketData.cuenta_venta.total.toFixed(2)}\n`
   );
