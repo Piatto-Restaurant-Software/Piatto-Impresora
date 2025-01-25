@@ -298,7 +298,7 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
       i18n.setLocale(locale);
 
       // Cargar traducciones localizadas para el ticket
-      const translations = loadedLocales[locale]?.[ticketType.toLowerCase()] || {};
+      const translations = loadedLocales[locale]?.[["precuenta"]] || {};
 
       // Ejecutar la impresión
       await printTicket(dataToPrint, printerInfo, translations, ticketType);

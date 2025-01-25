@@ -337,6 +337,7 @@ async function designPreBillUnix(printer, ticketData, translations) {
  * Diseño de precuenta para Windows
  */
 async function designPreBillWindows(printer, ticketData, translations) {
+  console.log("Pide precuenta", ticketData)
   await printer.feed(1);
   await printer.setAlignment(Align.Center);
   await printer.write("\x1B\x21\x30"); // Cambia a texto en negrita o doble ancho, si está disponible
@@ -401,7 +402,7 @@ async function designPreBillWindows(printer, ticketData, translations) {
     `${translations.total}: $${ticketData.total.toFixed(2)}\n`
   );
   await printer.write(
-    `${translations.tip}: $${ticketData.propina_predeterminada.toFixed(2)}\n`
+    `${translations.tip}: $${ticketData.propina_predeterminada}\n`
   );
   await printer.setAlignment(Align.Center);
   await printer.write("=".repeat(48) + "\n");
@@ -512,7 +513,7 @@ async function designFullTicket(printer, ticketData, translations) {
     );
   }
   await printer.write(
-    `${translations.tip}: $${ticketData.propina_predeterminada.toFixed(2)}\n`
+    `${translations.tip}: $${ticketData.cuenta_venta.propina_predeterminada}\n`
   );
   await printer.write(
     `${translations.total}: $${ticketData.cuenta_venta.total.toFixed(2)}\n`
