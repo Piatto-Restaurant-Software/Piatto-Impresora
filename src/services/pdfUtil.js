@@ -641,13 +641,22 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
   await printer.write(`${translations.table}: ${ticketData.mesa}\n`);
   await printer.write("=".repeat(48) + "\n");
 
+  await printer.setAlignment(Align.Left);
+  const espacio = String('').padEnd(8);
+  const notTexto = `Cant.   `.padEnd(2);
+  const notTexto1 = `Producto`.padEnd(2);
+  await printer.write(`${notTexto}${espacio}${notTexto1}\n`);
+  await printer.write("-".repeat(48) + "\n");
   for (const pedido of ticketData.pedidos) {
-    await printer.write(
-      `${pedido.cantidad} x ${pedido.presentacion}\n`
-    );
+
+
+    const espacio = String('').padEnd(8);
+    const notTexto = `${pedido.cantidad} X `.padEnd(2);
+    const notTexto1 = `${pedido.presentacion}`.padEnd(2);
+    await printer.write(`${notTexto}${espacio}${notTexto1}\n`);
   }
 
-  await printer.feed(4);
+  await printer.feed(6);
   await printer.cutter();
 }
 

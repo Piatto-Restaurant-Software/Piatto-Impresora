@@ -93,8 +93,7 @@ class PrinterService {
                 .slice(3) // Omitir encabezados y líneas vacías
                 .map((line) => line.trim())
                 .filter((line) => line) // Filtrar líneas vacías
-                .map(async (line) => {
-                  console.log("line", line); // Verificar cada línea
+                .map(async (line) => {// Verificar cada línea
                   const parts = line.match(/^(.+?)\s{2,}(.+?)\s{2,}(.+)$/); // Captura columnas con separadores
         
                   if (!parts) return null; // Si no se pueden capturar, descartar la línea
