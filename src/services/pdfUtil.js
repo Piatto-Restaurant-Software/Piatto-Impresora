@@ -71,6 +71,7 @@ async function designTestTicket(printer, testData, translations) {
   console.log("Test Ticket -> ", testData);
 
   // Encabezado del ticket
+  await printer.feed(1); 
   await printer.setAlignment(Align.Center);
   await printer.write("\x1B\x21\x30"); // Texto en negrita o tamaño mayor
   await printer.write("TICKET DE PRUEBA\n");
@@ -226,7 +227,10 @@ async function printTicketWindows(
       await designOrderSlipWindows(printer, ticketData, translations);
     } else if (ticketType === "Cierre"){
       await designTicketCierreWindows(printer, ticketData, translations);
-    }
+    } else {
+      
+        await designTestTicket(printer, ticketData, translations);
+      }
 
     fs.writeFileSync(outputPath, connection.buffer());
     console.log("printerName:", printerName);
@@ -333,6 +337,7 @@ async function designPreBillUnix(printer, ticketData, translations) {
  * Diseño de precuenta para Windows
  */
 async function designPreBillWindows(printer, ticketData, translations) {
+  await printer.feed(1);
   await printer.setAlignment(Align.Center);
   await printer.write("\x1B\x21\x30"); // Cambia a texto en negrita o doble ancho, si está disponible
   await printer.write(`${translations.pre_bill}\n`);

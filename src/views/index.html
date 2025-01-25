@@ -224,12 +224,9 @@
                     ? translations.interfaz.buttons.default
                     : translations.interfaz.buttons.non_default
                 }</p>
-                <button class="btn" onclick="testPrinter('${printer.name}')" ${
-            printer.status === translations.interfaz.status.disconnected ||
-            printer.status === translations.interfaz.status.printing
-              ? "disabled"
-              : ""
-          }>${translations.interfaz.buttons.test_print}</button>
+                <button class="btn" onclick="testPrinter('${printer.name}')" 
+
+              >${translations.interfaz.buttons.test_print}</button>
               </div>
             </div>
           `;
