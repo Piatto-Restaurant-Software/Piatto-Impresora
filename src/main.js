@@ -3,7 +3,7 @@ const cors = require("cors");
 const express = require("express");
 const bodyParser = require("body-parser");
 const { printTicket } = require("./services/pdfUtil");
-const printQueue  = require("./services/PrintQueue");
+const printQueue = require("./services/PrintQueue");
 const os = require("os");
 const path = require("path");
 const bonjour = require("bonjour")();
@@ -22,6 +22,103 @@ const port = 3002;
 let lastPrinterState = [];
 const uiService = new UIService();
 const udpServer = dgram.createSocket("udp4");
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  // Si no se puede adquirir el lock, significa que ya hay una instancia corriendo.
+  app.quit();
+} else {
+  // Este evento se ejecuta cuando el usuario intenta abrir otra instancia de la aplicación.
+  app.on("second-instance", (event, argv, workingDirectory) => {
+    if (uiService.window) {
+      if (uiService.window.isMinimized()) {
+        uiService.window.restore();
+      }
+      uiService.window.show();
+      uiService.window.focus();
+    }
+  });
+
+  // Inicialización principal de la aplicación
+  app.whenReady().then(() => {
+    // Configurar inicio automático
+    app.setLoginItemSettings({
+      openAtLogin: true,
+      path: app.getPath("exe"),
+      args: ["--hidden"], // Agregas el argumento "--hidden" para inicio automático
+    });
+
+    const isHidden = process.argv.includes("--hidden");
+
+    if (isHidden) {
+      uiService.createTray(); // Solo crea la bandeja del sistema
+    } else {
+      uiService.createMainWindow(); // Crea la ventana principal
+      uiService.createTray();
+    }
+
+    // Configurar WebSocket y atajos globales
+    initializeWebSocket();
+    globalShortcut.register("CommandOrControl+Q", () => {
+      uiService.isQuitting = true;
+      app.quit();
+    });
+
+    // Inicia el servidor solo si no está corriendo
+    startServer();
+  });
+
+  app.on("before-quit", () => {
+    uiService.isQuitting = true;
+    globalShortcut.unregisterAll();
+    stopServer();
+    bonjour.unpublishAll(() => bonjour.destroy());
+  });
+
+  app.on("will-quit", () => {
+    globalShortcut.unregisterAll();
+    stopServer();
+    bonjour.unpublishAll(() => bonjour.destroy());
+  });
+
+  process.on("uncaughtException", (error) => {
+    console.error("Uncaught Exception:", error);
+  });
+
+  process.on("unhandledRejection", (reason, promise) => {
+    console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  });
+}
+
+function startServer() {
+  if (!server) {
+    server = expressApp.listen(3001, "0.0.0.0", () => {
+      logToRenderer(
+        "info",
+        `Express server has started on IP: ${getLocalIPAddress()} and port 3001`
+      );
+      publishBonjourService();
+      startUDPBroadcast();
+    });
+
+    server.on("error", (err) => {
+      if (err.code === "EADDRINUSE") {
+        console.error("El puerto 3001 ya está en uso. Verifica si el servidor ya está corriendo.");
+      } else {
+        throw err;
+      }
+    });
+  }
+}
+
+function stopServer() {
+  if (server) {
+    server.close(() => {
+      console.log("Servidor Express detenido.");
+    });
+    server = null;
+  }
+}
 
 function logToRenderer(type, message) {
   if (uiService.window) {
@@ -39,17 +136,7 @@ expressApp.get("/api/v1/status", (req, res) => {
   res.send({ status: "Server is running" });
 });
 
-// Inicia el servidor Express
-if (!server) {
-  server = expressApp.listen(3001, "0.0.0.0", () => {
-    logToRenderer(
-      "info",
-      `Express server has started on IP: ${getLocalIPAddress()} and port 3001`
-    );
-    publishBonjourService();
-    startUDPBroadcast();
-  });
-}
+
 
 function publishBonjourService(retries = 5) {
   const localIP = getLocalIPAddress();
@@ -61,7 +148,7 @@ function publishBonjourService(retries = 5) {
     txt: { info: "Servicio de impresión para POS" },
   });
 
-  bonjourService.on("up", () => {});
+  bonjourService.on("up", () => { });
 
   bonjourService.on("error", (err) => {
     console.error("Error publishing Bonjour service:", err.message);
@@ -163,53 +250,8 @@ ipcMain.handle("request-server-info", async () => {
   return { localIP, port };
 });
 
-app.whenReady().then(() => {
-  // Configurar inicio automático
-  app.setLoginItemSettings({
-    openAtLogin: true,
-    path: app.getPath("exe"),
-  });
-
-  const wasLaunchedAtLogin = app.getLoginItemSettings().wasOpenedAtLogin;
-
-  if (wasLaunchedAtLogin) {
-    uiService.createTray(); // Solo crea la bandeja del sistema
-  } else {
-    uiService.createMainWindow(); // Crea la ventana principal
-    uiService.createTray(); // También muestra la bandeja
-  }
-
-  // Configurar WebSocket y atajos globales
-  initializeWebSocket();
-  globalShortcut.register("CommandOrControl+Q", () => {
-    uiService.isQuitting = true;
-    app.quit();
-  });
-});
-
 app.on("ready", () => {
   console.log("App is ready.");
-});
-
-process.on("uncaughtException", (error) => {
-  console.error("Uncaught Exception:", error);
-});
-
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
-});
-
-app.on("before-quit", () => {
-  uiService.isQuitting = true;
-  globalShortcut.unregisterAll();
-  if (server) server.close();
-  bonjour.unpublishAll(() => bonjour.destroy());
-});
-
-app.on("will-quit", () => {
-  globalShortcut.unregisterAll();
-  if (server) server.close();
-  bonjour.unpublishAll(() => bonjour.destroy());
 });
 
 // i18n
