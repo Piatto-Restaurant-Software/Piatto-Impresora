@@ -38,8 +38,8 @@ class PrinterService {
     try {
       const isConnected =
         os.platform() === "win32"
-          ? await isPrinterConnectedWindows(printerName)
-          : await isPrinterConnectedUnix(printerName);
+          ? await this.isPrinterConnectedWindows(printerName)
+          : await this.isPrinterConnectedUnix(printerName);
   
       if (!isConnected) {
         throw new Error("La impresora no está conectada o activa.");
