@@ -3,6 +3,57 @@ const { exec } = require("child_process");
 const os = require("os");
 
 class PrinterService {
+  // Detecta estado de impresora WINDOWS
+  async isPrinterConnectedWindows(printerName) {
+    console.log("Comando de comprobacion -> ", `powershell -Command "Get-Printer | Where-Object { $_.Name -eq '${printerName}' }"`)
+    return new Promise((resolve) => {
+      exec(
+        `powershell -Command "Get-Printer | Where-Object { $_.Name -eq '${printerName}' }"`,
+        (error, stdout) => {
+          if (error || !stdout.trim()) {
+            resolve(false); // Impresora no encontrada o no conectada
+          } else {
+            resolve(true); // Impresora conectada
+          }
+        }
+      );
+    });
+  }
+
+  // Detecta estado de impresora MACOS
+  async isPrinterConnectedUnix(printerName) {
+    return new Promise((resolve) => {
+      exec(`lpstat -p ${printerName}`, (error, stdout) => {
+        if (error || stdout.includes("inactiva")) {
+          resolve(false); // Impresora no conectada o inactiva
+        } else {
+          resolve(true); // Impresora conectada y activa
+        }
+      });
+    });
+  }
+
+  // Detecta estado de impresora WINDOWS o MACOS
+  async testPrinterConnection(printerName) {
+    try {
+      const isConnected =
+        os.platform() === "win32"
+          ? await isPrinterConnectedWindows(printerName)
+          : await isPrinterConnectedUnix(printerName);
+  
+      if (!isConnected) {
+        throw new Error("La impresora no está conectada o activa.");
+      }
+  
+      console.log("Conexión con la impresora verificada.");
+      return true;
+    } catch (error) {
+      console.error("Error al verificar la conexión de la impresora:", error);
+      return false;
+    }
+  }
+  
+
   static findPrinterByName(printerName) {
     return new Promise((resolve, reject) => {
       const devices = usb.getDeviceList();
@@ -23,7 +74,6 @@ class PrinterService {
       if (foundDevice) {
         resolve(foundDevice);
       } else {
-
         reject(new Error("Printer not found"));
       }
     });
@@ -41,7 +91,7 @@ class PrinterService {
               `Error al obtener impresoras en macOS: ${error.message}`
             );
           }
-  
+
           const printers = stdout
             .split("\n\n")
             .filter((block) => block.includes("impresora"))
@@ -52,13 +102,12 @@ class PrinterService {
               const description = descriptionMatch
                 ? descriptionMatch[1]
                 : "Sin descripción";
-  
+
               return {
                 name: name,
                 description: description,
               };
             });
-
 
           const matchingPrinter = printers.find(
             (printer) => printer.description === target
@@ -84,31 +133,34 @@ class PrinterService {
                 `Error al obtener impresoras en Windows: ${error.message}`
               );
             }
-        
+
             const usbDevices = usb.getDeviceList();
-        
+
             const printers = await Promise.all(
               stdout
                 .split("\n")
                 .slice(3) // Omitir encabezados y líneas vacías
                 .map((line) => line.trim())
                 .filter((line) => line) // Filtrar líneas vacías
-                .map(async (line) => {// Verificar cada línea
+                .map(async (line) => {
+                  // Verificar cada línea
                   const parts = line.match(/^(.+?)\s{2,}(.+?)\s{2,}(.+)$/); // Captura columnas con separadores
-        
+
                   if (!parts) return null; // Si no se pueden capturar, descartar la línea
-        
+
                   const printerName = parts[1].trim();
                   const portName = parts[2].trim();
                   const isDefault = parts[3].trim() === "True";
-        
+
                   const isPhysicallyConnected = usbDevices.some((device) => {
                     const desc = device.deviceDescriptor;
                     return portName.startsWith("USB");
                   });
-        
-                  const isPrinting = await this.checkPrintJobWindows(printerName);
-        
+
+                  const isPrinting = await this.checkPrintJobWindows(
+                    printerName
+                  );
+
                   let finalStatus;
                   if (isPrinting) {
                     finalStatus = "Imprimiendo";
@@ -117,7 +169,7 @@ class PrinterService {
                   } else {
                     finalStatus = "Desconectada";
                   }
-        
+
                   return {
                     name: printerName,
                     status: finalStatus,
@@ -127,7 +179,7 @@ class PrinterService {
                   };
                 })
             );
-        
+
             resolve(printers.filter(Boolean));
           }
         );

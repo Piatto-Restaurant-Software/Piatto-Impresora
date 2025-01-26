@@ -103,7 +103,9 @@ function startServer() {
 
     server.on("error", (err) => {
       if (err.code === "EADDRINUSE") {
-        console.error("El puerto 3001 ya está en uso. Verifica si el servidor ya está corriendo.");
+        console.error(
+          "El puerto 3001 ya está en uso. Verifica si el servidor ya está corriendo."
+        );
       } else {
         throw err;
       }
@@ -136,8 +138,6 @@ expressApp.get("/api/v1/status", (req, res) => {
   res.send({ status: "Server is running" });
 });
 
-
-
 function publishBonjourService(retries = 5) {
   const localIP = getLocalIPAddress();
   const bonjourService = bonjour.publish({
@@ -148,7 +148,7 @@ function publishBonjourService(retries = 5) {
     txt: { info: "Servicio de impresión para POS" },
   });
 
-  bonjourService.on("up", () => { });
+  bonjourService.on("up", () => {});
 
   bonjourService.on("error", (err) => {
     console.error("Error publishing Bonjour service:", err.message);
@@ -331,6 +331,15 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
       throw new Error("Formato de data inválido");
     }
 
+    // Verificar conexión de la impresora
+    const isConnected = await testPrinterConnection(printerNameStr);
+    if (!isConnected) {
+      return res.status(400).send({
+        success: false,
+        message: "La impresora no está conectada o activa.",
+      });
+    }
+
     // Agregar el trabajo de impresión a la cola con la prioridad basada en el tipo de ticket
     printQueue.addJob(async () => {
       const printerInfo = await PrinterService.getNamePrinter(printerNameStr);
@@ -362,7 +371,6 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
     });
   }
 });
-
 
 expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
   try {
