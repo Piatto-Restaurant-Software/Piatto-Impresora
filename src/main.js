@@ -23,6 +23,7 @@ let lastPrinterState = [];
 const uiService = new UIService();
 const udpServer = dgram.createSocket("udp4");
 const gotTheLock = app.requestSingleInstanceLock();
+const printerService = new PrinterService();
 
 if (!gotTheLock) {
   // Si no se puede adquirir el lock, significa que ya hay una instancia corriendo.
@@ -332,7 +333,7 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
     }
 
     // Verificar conexión de la impresora
-    const isConnected = await testPrinterConnection(printerNameStr);
+    const isConnected = await printerService.testPrinterConnection(printerNameStr);
     if (!isConnected) {
       return res.status(400).send({
         success: false,
