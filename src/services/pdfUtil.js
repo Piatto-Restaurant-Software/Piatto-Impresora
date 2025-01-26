@@ -353,11 +353,20 @@ async function designPreBillWindows(printer, ticketData, translations) {
   await printer.write(`${translations.table}: ${ticketData.mesa}\n`);
   await printer.write("=".repeat(48) + "\n"); // Separador de sección
 
+  await printer.setAlignment(Align.Left);
+  const espacio = String('').padEnd(4);
+  const espacio1 = String('').padEnd(8);
+  const notTexto = `Cant.   `.padEnd(2);
+  const producto = `Producto`.padEnd(2);
+  const pu = `P.U.`.padEnd(2);
+  const importe = `Importe`.padEnd(2);
+  await printer.write(`${notTexto}${espacio}${producto}${espacio1}${espacio}${pu}${espacio}${importe}\n`);
+  await printer.write("-".repeat(48) + "\n");
   // Imprimir cada pedido
   for (const pedido of ticketData.pedidos) {
     const cantidad = pedido.cantidad.toString().padEnd(5); // "Cant" - 5 caracteres de ancho
-    const precioUnitario = `$${pedido.precio_unitario.toFixed(2)}`.padStart(6); // "P.U" - 6 caracteres de ancho
-    const precioTotal = `$${pedido.precio_total.toFixed(2)}`.padStart(6); // "Total" - 6 caracteres de ancho
+    const precioUnitario = `$${pedido.precio_unitario.toFixed(2)}`.padStart(10); // "P.U" - 6 caracteres de ancho
+    const precioTotal = `$${pedido.precio_total.toFixed(2)}`.padStart(8); // "Total" - 6 caracteres de ancho
 
     // Separar el nombre del producto sin cortar palabras
     const producto = pedido.producto_presentacion.nombre;
@@ -650,14 +659,14 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
   for (const pedido of ticketData.pedidos) {
 
 
-    const espacio = String('').padEnd(5);
+    const espacio = String('').padEnd(8);
     const notTexto = `${pedido.cantidad} X `.padEnd(2);
     const producto = `${pedido.producto}`.padEnd(2);
     const presentacion = `${pedido.presentacion}`.padEnd(2);
     await printer.write(`${notTexto}${espacio}${presentacion}\n`);
     for (const modificador of pedido.modificadores) {
-      const sangria = String('').padEnd(10);
-      const espacioM = String('').padEnd(8);
+      const sangria = String('').padEnd(15);
+      const espacioM = String('').padEnd(2);
       const notTextoM = `${modificador.cantidad} X `.padEnd(2);
       const mod = `${modificador.nombre}`.padEnd(2);
       await printer.write(`${sangria}${notTextoM}${espacioM}${mod}*\n`);
