@@ -652,8 +652,15 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
 
     const espacio = String('').padEnd(8);
     const notTexto = `${pedido.cantidad} X `.padEnd(2);
-    const notTexto1 = `${pedido.presentacion}`.padEnd(2);
-    await printer.write(`${notTexto}${espacio}${notTexto1}\n`);
+    const producto = `${pedido.producto}`.padEnd(2);
+    const presentacion = `${pedido.presentacion}`.padEnd(2);
+    await printer.write(`${notTexto}${espacio}${producto} - ${presentacion}\n`);
+    for (const modificador of modificadores) {
+      const espacioM = String('').padEnd(8);
+      const notTextoM = `${modificador.cantidad} X `.padEnd(2);
+      const mod = `${modificador.nombre}`.padEnd(2);
+      await printer.write(`${notTextoM}${espacioM}${producto}*\n`);
+    }
   }
 
   await printer.feed(6);
