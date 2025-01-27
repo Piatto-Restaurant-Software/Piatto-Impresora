@@ -364,7 +364,7 @@ async function designPreBillWindows(printer, ticketData, translations) {
   await printer.write("-".repeat(48) + "\n");
   // Imprimir cada pedido
   for (const pedido of ticketData.pedidos) {
-    const cantidad = pedido.cantidad.toString().padEnd(2); // "Cant" - 5 caracteres de ancho
+    const cantidad = pedido.cantidad.toString().padEnd(4); // "Cant" - 5 caracteres de ancho
     const precioUnitario = `$${pedido.precio_unitario.toFixed(2)}`.padStart(10); // "P.U" - 6 caracteres de ancho
     const precioTotal = `$${pedido.precio_total.toFixed(2)}`.padStart(8); // "Total" - 6 caracteres de ancho
 
@@ -389,9 +389,7 @@ async function designPreBillWindows(printer, ticketData, translations) {
 
     // Imprimir cantidad, primera línea del producto, precio unitario y total en la misma fila
     await printer.write(
-      `${cantidad}${lineasProducto[0].padEnd(
-        20
-      )} ${precioUnitario} ${precioTotal}\n`
+      `${cantidad}${lineasProducto[0].padEnd(5)} ${precioUnitario} ${precioTotal}\n`
     );
 
     // Imprimir las líneas adicionales del producto, si las hay
