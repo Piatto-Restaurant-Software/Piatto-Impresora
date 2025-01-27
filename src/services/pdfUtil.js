@@ -364,7 +364,7 @@ async function designPreBillWindows(printer, ticketData, translations) {
   await printer.write("-".repeat(48) + "\n");
   // Imprimir cada pedido
   for (const pedido of ticketData.pedidos) {
-    const cantidad = pedido.cantidad.toString().padEnd(5); // "Cant" - 5 caracteres de ancho
+    const cantidad = pedido.cantidad.toString().padEnd(2); // "Cant" - 5 caracteres de ancho
     const precioUnitario = `$${pedido.precio_unitario.toFixed(2)}`.padStart(10); // "P.U" - 6 caracteres de ancho
     const precioTotal = `$${pedido.precio_total.toFixed(2)}`.padStart(8); // "Total" - 6 caracteres de ancho
 
@@ -458,7 +458,9 @@ async function designFullTicket(printer, ticketData, translations) {
     `${translations.seller}: ${ticketData.usuario.nombre} ${ticketData.usuario.apellidos}\n`
   );
   await printer.write(
-    `${translations.date}: ${ticketData.venta.fin_venta.split(" ")[0]}\n`
+    `${translations.date}: ${new Date(
+      ticketData.venta.fin_venta
+    ).toLocaleString()}\n`
   );
   await printer.write("=".repeat(48) + "\n");
 
@@ -667,7 +669,9 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
       const espacioM = String('').padEnd(2);
       const notTextoM = `${modificador.cantidad} X `.padEnd(2);
       const mod = `${modificador.nombre}`.padEnd(2);
+      const nota = `${modificador.notaPedido}`.padEnd(2);
       await printer.write(`${sangria}${notTextoM}${espacioM}${mod}*\n`);
+      await printer.write(`${sangria} - ${nota}*\n`);
     }
   }
 
