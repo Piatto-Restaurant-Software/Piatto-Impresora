@@ -71,7 +71,7 @@ async function designTestTicket(printer, testData, translations) {
   console.log("Test Ticket -> ", testData);
 
   // Encabezado del ticket
-  await printer.feed(1); 
+  await printer.feed(1);
   await printer.setAlignment(Align.Center);
   await printer.write("\x1B\x21\x30"); // Texto en negrita o tamaño mayor
   await printer.write("TICKET DE PRUEBA\n");
@@ -154,56 +154,98 @@ async function designTestTicket(printer, testData, translations) {
  * Impreme Ticket de cierre de caja Resumido Windows
  */
 async function designTicketCierreWindows(printer, data, translations) {
-// Encabezado del ticket
-await printer.feed(1);
-await printer.setAlignment(Align.Center);
-await printer.write("\x1B\x21\x30"); // Negrita y texto grande
-await printer.write("Cierre de Caja"+"\n"); // Título principal
-await printer.write("\x1B\x21\x00"); // Restablecer estilo normal
-await printer.write("=".repeat(48) + "\n");
+  const SEPARATOR = "=".repeat(48);
+  const LINE_SEPARATOR = "-".repeat(48);
 
-// Información principal (Usuario, Fecha, Caja)
-await printer.setAlignment(Align.Left);
-await printer.write(`Usuario: ${data.usuario_cierre}\n`); // Usuario
-await printer.write(`Fecha: ${data.fecha_cierre}\n`); // Fecha
-await printer.write(`Caja: ${data.nombre_caja_aperturada}\n`); // Caja
-await printer.write("=".repeat(48) + "\n");
+  // Helper para dividir texto largo
+  function splitText(text, length) {
+    const words = text.split(" ");
+    const lines = [];
+    let currentLine = "";
 
-// Totales (Total apertura, Ventas, Ingresos, Gastos)
-await printer.write(`Total Apertura: ${data.total_apertura}\n`); // Total apertura
-await printer.write(`Venta total en efectivo: ${data.total_venta_efectivo}\n`); // Ventas en efectivo
-await printer.write(`Venta total en tarjeta: ${data.total_venta_tarjeta}\n`); // Ventas en tarjeta
-await printer.write(`Total Ventas: ${data.total_ventas}\n`); // Total ventas
-await printer.write(`Ingresos Totales: ${data.total_ingresos}\n`); // Ingresos totales
-await printer.write(`Gastos Totales: ${data.total_gastos}\n`); // Gastos totales
-await printer.write("=".repeat(48) + "\n");
+    for (const word of words) {
+      if ((currentLine + word).length > length) {
+        lines.push(currentLine.trim());
+        currentLine = word + " ";
+      } else {
+        currentLine += word + " ";
+      }
+    }
+    lines.push(currentLine.trim());
+    return lines;
+  }
 
-// Encabezado de pedidos
-await printer.setAlignment(Align.Left);
-await printer.write("Listado de Pedidos:"+"\n"); // Título de la sección
-await printer.write("Cantidad   Producto                    Importe"+"\n"); // Encabezado de tabla
-await printer.write("-".repeat(48) + "\n");
+  // Encabezado del ticket
+  await printer.feed(1);
+  await printer.setAlignment(Align.Center);
+  await printer.write("\x1B\x21\x30"); // Texto grande/negrita
+  await printer.write(`${translations.closing_ticket}\n`);
+  await printer.write("\x1B\x21\x00"); // Restablecer estilo normal
+  await printer.write(`${SEPARATOR}\n`);
 
-// Listado de pedidos
-for (const pedido of data.pedidos) {
-  const cantidad = pedido.cantidad.toString().padEnd(10); // Cantidad (espaciado de 10 caracteres)
-  const nombreProducto = pedido.nombre.padEnd(24); // Nombre del producto (ajustado a 24 caracteres)
-  const importe = pedido.total.padStart(8); // Total del producto (alineado a la derecha)
+  // Información principal del cierre
+  await printer.setAlignment(Align.Left);
+  await printer.write(`${translations.cash_register}: ${data.nombre_caja_aperturada}\n`);
+  await printer.write(`${translations.open_user}: ${data.usuario_apertura}\n`);
+  await printer.write(`${translations.close_user}: ${data.usuario_cierre}\n`);
+  await printer.write(`${translations.open_date}: ${data.fecha_apertura}\n`);
+  await printer.write(`${translations.close_date}: ${data.fecha_cierre}\n`);
+  await printer.write(`${SEPARATOR}\n`);
 
-  // Imprimir la línea del pedido
-  await printer.write(`${cantidad}${nombreProducto}${importe}\n`);
+  // Totales
+  await printer.write(`${translations.opening_total}: ${data.total_apertura}\n`);
+  await printer.write(`${translations.sales_total}: ${data.total_ventas}\n`);
+  await printer.write(`${translations.cash_total}: ${data.total_venta_efectivo}\n`);
+  //await printer.write(`${translations.card_total}: ${data.total_venta_tarjeta}\n`);
+  //await printer.write(`${translations.tranfers_total}: ${data.total_venta_transferencia}\n`);
+  //await printer.write(`${translations.general_cash_total}: ${data.total_caja_efectivo}\n`);
+  //await printer.write(`${translations.general_cash_total}: ${data.total_caja_general}\n`);
+  //await printer.write(`${SEPARATOR}\n`);
+
+  // Pedidos
+  if (data.pedidos && data.pedidos.length > 0) {
+    await printer.setAlignment(Align.Center);
+    await printer.write(`${translations.orders}\n`);
+    await printer.write(`${LINE_SEPARATOR}\n`);
+
+    // Encabezado de la tabla de pedidos
+    await printer.setAlignment(Align.Left);
+    await printer.write(
+      `${translations.qty.padEnd(8)}${translations.product.padEnd(25)}${translations.unit_price.padStart(4)}${translations.total.padStart(8)}\n`
+    );
+    await printer.write(`${LINE_SEPARATOR}\n`);
+
+    // Detalles de pedidos
+    for (const pedido of data.pedidos) {
+      const cantidad = pedido.cantidad.toString().padEnd(4);
+      const precioUnitario = pedido.total.padStart(8); // Requiere un campo unitario si se añade
+      const precioTotal = pedido.total.padStart(8);
+      const lineasProducto = splitText(pedido.nombre || "-", 25);
+
+      // Primera línea del producto
+      await printer.write(
+        `${cantidad}${lineasProducto[0].padEnd(25)}${precioUnitario}${precioTotal}\n`
+      );
+
+      // Líneas adicionales del producto
+      for (let i = 1; i < lineasProducto.length; i++) {
+        await printer.write(`      ${lineasProducto[i]}\n`);
+      }
+    }
+
+    await printer.write(`${LINE_SEPARATOR}\n`);
+  }
+
+  // Final del ticket
+  await printer.setAlignment(Align.Center);
+  await printer.write(`${translations.thank_you}\n`);
+  await printer.write(`${SEPARATOR}\n`);
+
+  // Alimentar papel y cortar
+  await printer.feed(6);
+  await printer.cutter();
 }
 
-await printer.write("-".repeat(48) + "\n");
-
-// Pie de página del ticket
-await printer.setAlignment(Align.Center);
-await printer.write("¡Gracias por su trabajo!"+"\n");
-await printer.write("=".repeat(48) + "\n");
-
-await printer.feed(6); // Alimentar papel
-await printer.cutter(); // Cortar papel
-}
 
 
 /**
@@ -225,12 +267,12 @@ async function printTicketWindows(
       await designPreBillWindows(printer, ticketData, translations);
     } else if (ticketType === "Comanda") {
       await designOrderSlipWindows(printer, ticketData, translations);
-    } else if (ticketType === "Cierre"){
+    } else if (ticketType === "Cierre") {
       await designTicketCierreWindows(printer, ticketData, translations);
     } else {
-      
-        await designTestTicket(printer, ticketData, translations);
-      }
+
+      await designTestTicket(printer, ticketData, translations);
+    }
 
     fs.writeFileSync(outputPath, connection.buffer());
     console.log("printerName:", printerName);
@@ -533,8 +575,7 @@ async function designFullTicket(printer, ticketData, translations) {
     await printer.write(`${translations.payments}\n`);
     for (const pago of ticketData.pagos) {
       await printer.write(
-        `${pago.tipo_pago.nombre}: $${pago.monto.toFixed(2)}${
-          pago.tarjeta ? ` (${pago.tarjeta})` : ""
+        `${pago.tipo_pago.nombre}: $${pago.monto.toFixed(2)}${pago.tarjeta ? ` (${pago.tarjeta})` : ""
         }\n`
       );
     }
@@ -612,7 +653,7 @@ async function designOrderSlipUnix(printer, ticketData, translations) {
       const modTexto = `  * ${modificador.cantidad}x ${modificador.nombre}`.padEnd(32);
       await printer.write(`${espacio}${modTexto}\n`);
     }
-    if(pedido.notaPedido !== null && pedido.notaPedido !== undefined){
+    if (pedido.notaPedido !== null && pedido.notaPedido !== undefined) {
       const espacio = String('').padEnd(8);
       const notTexto = `  - ${modificador.notaPedido}`.padEnd(32);
       await printer.write(`${espacio}${notTexto}\n`);

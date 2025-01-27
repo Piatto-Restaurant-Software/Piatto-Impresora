@@ -20,5 +20,19 @@
   "full_ticket": "Ticket",
   "order_slip": "Order Slip",
   "waiter": "Waiter",
-  "area": "Area"
+  "area": "Area",
+  "orders": "Orders",
+  "cash_total": "Total cash",
+  "sales_total": "Total sales",
+  "opening_total": "Total opening",
+  "close_date": "Close date",
+  "open_date": "Open date",
+  "close_user": "Close user",
+  "open_user": "Open user",
+  "cash_register": "Cash Register",
+  "closing_ticket": "Closing Ticket",
+  "card_total": "Total Card",
+  "tranfers_total": "Total Transfer",
+  "general_cash_total": "General Cash Total",
+  "total_cash": "Total Cash"
 }

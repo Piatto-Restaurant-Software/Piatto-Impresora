@@ -20,5 +20,19 @@
   "full_ticket": "Ticket",
   "order_slip": "Comanda",
   "waiter": "Mesero",
-  "area": "Area"
+  "area": "Area",
+  "orders": "Pedidos",
+  "cash_total": "Total Efectivo",
+  "sales_total": "Total Ventas",
+  "opening_total": "Total Apertura",
+  "close_date": "Fecha Cierre",
+  "open_date": "Fecha Apertura",
+  "close_user": "Usuario Cierre",
+  "open_user": "Usuario Apertura",
+  "cash_register": "Caja",
+  "closing_ticket": "Ticket de cierre",
+  "card_total": "Total Tarjeta",
+  "tranfers_total": "Total Transferencia",
+  "general_cash_total": "Total General Efectivo",
+  "total_caja": "Total Caja"
 }
