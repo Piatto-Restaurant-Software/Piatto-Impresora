@@ -458,9 +458,7 @@ async function designFullTicket(printer, ticketData, translations) {
     `${translations.seller}: ${ticketData.usuario.nombre} ${ticketData.usuario.apellidos}\n`
   );
   await printer.write(
-    `${translations.date}: ${new Date(
-      ticketData.venta.fin_venta
-    ).toLocaleString()}\n`
+    `${translations.date}: ${ticketData.venta.fin_venta}\n`
   );
   await printer.write("=".repeat(48) + "\n");
 
