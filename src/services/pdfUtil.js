@@ -337,86 +337,83 @@ async function designPreBillUnix(printer, ticketData, translations) {
  * Diseño de precuenta para Windows
  */
 async function designPreBillWindows(printer, ticketData, translations) {
-  console.log("Pide precuenta", ticketData)
+  const SEPARATOR = "=".repeat(48);
+  const LINE_SEPARATOR = "-".repeat(48);
+
+  // Helper para dividir texto
+  function splitText(text, length) {
+    const words = text.split(" ");
+    const lines = [];
+    let currentLine = "";
+
+    for (const word of words) {
+      if ((currentLine + word).length > length) {
+        lines.push(currentLine.trim());
+        currentLine = word + " ";
+      } else {
+        currentLine += word + " ";
+      }
+    }
+    lines.push(currentLine.trim());
+    return lines;
+  }
+
+  // Encabezado
   await printer.feed(1);
   await printer.setAlignment(Align.Center);
-  await printer.write("\x1B\x21\x30"); // Cambia a texto en negrita o doble ancho, si está disponible
+  await printer.write("\x1B\x21\x30"); // Texto grande/negrita
   await printer.write(`${translations.pre_bill}\n`);
-  await printer.write("\x1B\x21\x00"); // Restaura el estilo normal
+  await printer.write("\x1B\x21\x00"); // Texto normal
+  await printer.write(`${SEPARATOR}\n`);
 
-  await printer.write("=".repeat(48) + "\n"); // Línea separadora debajo
-
-  // Continuar con el resto del ticket
-  await printer.setAlignment(Align.Center);
+  // Información del local
   await printer.write(`${ticketData.local.nombre}\n`);
   await printer.write(`${ticketData.local.telefono}\n`);
   await printer.write(`${translations.table}: ${ticketData.mesa}\n`);
-  await printer.write("=".repeat(48) + "\n"); // Separador de sección
+  await printer.write(`${SEPARATOR}\n`);
 
+  // Encabezado de tabla
   await printer.setAlignment(Align.Left);
-  const espacio = String('').padEnd(4);
-  const espacio1 = String('').padEnd(8);
-  const notTexto = `Cant.   `.padEnd(2);
-  const producto = `Producto`.padEnd(2);
-  const pu = `P.U.`.padEnd(2);
-  const importe = `Importe`.padEnd(2);
-  await printer.write(`${notTexto}${espacio}${producto}${espacio1}${espacio}${pu}${espacio}${importe}\n`);
-  await printer.write("-".repeat(48) + "\n");
-  // Imprimir cada pedido
+  await printer.write("Cant  Producto                  P.U.    Total\n");
+  await printer.write(`${LINE_SEPARATOR}\n`);
+
+  // Detalles de pedidos
   for (const pedido of ticketData.pedidos) {
-    const cantidad = pedido.cantidad.toString().padEnd(4); // "Cant" - 5 caracteres de ancho
-    const precioUnitario = `$${pedido.precio_unitario.toFixed(2)}`.padStart(10); // "P.U" - 6 caracteres de ancho
-    const precioTotal = `$${pedido.precio_total.toFixed(2)}`.padStart(8); // "Total" - 6 caracteres de ancho
-
-    // Separar el nombre del producto sin cortar palabras
+    const cantidad = pedido.cantidad.toString().padEnd(5);
+    const precioUnitario = `$${pedido.precio_unitario.toFixed(2)}`.padStart(8);
+    const precioTotal = `$${pedido.precio_total.toFixed(2)}`.padStart(8);
     const producto = pedido.producto_presentacion.nombre;
-    let lineasProducto = [];
-    if (producto.length > 20) {
-      let palabras = producto.split(" ");
-      let lineaActual = "";
-      for (let palabra of palabras) {
-        if ((lineaActual + palabra).length > 20) {
-          lineasProducto.push(lineaActual.trim());
-          lineaActual = palabra + " ";
-        } else {
-          lineaActual += palabra + " ";
-        }
-      }
-      lineasProducto.push(lineaActual.trim());
-    } else {
-      lineasProducto.push(producto);
-    }
 
-    // Imprimir cantidad, primera línea del producto, precio unitario y total en la misma fila
+    const lineasProducto = splitText(producto, 26);
+
+    // Primera línea con cantidad y precios
     await printer.write(
-      `${cantidad}${lineasProducto[0].padEnd(5)} ${precioUnitario} ${precioTotal}\n`
+      `${cantidad}${lineasProducto[0].padEnd(26)}${precioUnitario}${precioTotal}\n`
     );
 
-    // Imprimir las líneas adicionales del producto, si las hay
+    // Líneas adicionales del producto
     for (let i = 1; i < lineasProducto.length; i++) {
-      await printer.write(` ${lineasProducto[i]}\n`); // Espacio inicial para alinear las líneas adicionales del producto
+      await printer.write(`      ${lineasProducto[i]}\n`);
     }
   }
 
-  await printer.write("-".repeat(48) + "\n");
+  // Subtotales y totales
+  await printer.write(`${LINE_SEPARATOR}\n`);
   await printer.setAlignment(Align.Right);
-  await printer.write(
-    `${translations.subtotal}: $${ticketData.subtotal.toFixed(
-      2
-    )}\n`
-  );
-  await printer.write(
-    `${translations.total}: $${ticketData.total.toFixed(2)}\n`
-  );
-  await printer.write(
-    `${translations.tip}: $${ticketData.propina_predeterminada}\n`
-  );
+  await printer.write(`${translations.subtotal}: $${ticketData.subtotal.toFixed(2)}\n`);
+  await printer.write(`${translations.tip}: $${ticketData.propina_predeterminada.toFixed(2)}\n`);
+  await printer.write("\x1B\x21\x30"); // Texto grande
+  await printer.write(`${translations.total}: $${ticketData.total.toFixed(2)}\n`);
+  await printer.write("\x1B\x21\x00"); // Texto normal
+
+  // Pie del ticket
   await printer.setAlignment(Align.Center);
-  await printer.write("=".repeat(48) + "\n");
+  await printer.write(`${SEPARATOR}\n`);
   await printer.write(`${ticketData.encabezado_ticket}\n`);
   await printer.write(`${ticketData.pie_pagina_ticket}\n`);
 
-  await printer.feed(6); // Alimentar papel
+  // Alimentar papel y cortar
+  await printer.feed(6);
   await printer.cutter();
 }
 
@@ -424,14 +421,34 @@ async function designPreBillWindows(printer, ticketData, translations) {
  * Diseño de ticket completo (full) para todos los sistemas operativos
  */
 async function designFullTicket(printer, ticketData, translations) {
-  console.log("Ticket Full -> ",ticketData)
+  const SEPARATOR = "=".repeat(48);
+  const LINE_SEPARATOR = "-".repeat(48);
+
+  // Helper para dividir texto
+  function splitText(text, length) {
+    const words = text.split(" ");
+    const lines = [];
+    let currentLine = "";
+
+    for (const word of words) {
+      if ((currentLine + word).length > length) {
+        lines.push(currentLine.trim());
+        currentLine = word + " ";
+      } else {
+        currentLine += word + " ";
+      }
+    }
+    lines.push(currentLine.trim());
+    return lines;
+  }
+
   // Encabezado del ticket
   await printer.feed(1);
   await printer.setAlignment(Align.Center);
-  await printer.write("\x1B\x21\x30"); // Texto en negrita o tamaño mayor
+  await printer.write("\x1B\x21\x30"); // Texto grande/negrita
   await printer.write(`${translations.full_ticket}\n`);
-  await printer.write("\x1B\x21\x00"); // Restablecer el estilo normal
-  await printer.write("=".repeat(48) + "\n");
+  await printer.write("\x1B\x21\x00"); // Texto normal
+  await printer.write(`${SEPARATOR}\n`);
 
   // Información del local
   await printer.write(`${ticketData.local.nombre}\n`);
@@ -442,7 +459,7 @@ async function designFullTicket(printer, ticketData, translations) {
   if (ticketData.local.encabezado_ticket) {
     await printer.write(`${ticketData.local.encabezado_ticket}\n`);
   }
-  await printer.write("=".repeat(48) + "\n");
+  await printer.write(`${SEPARATOR}\n`);
 
   // Información del cliente y la venta
   await printer.setAlignment(Align.Left);
@@ -460,120 +477,97 @@ async function designFullTicket(printer, ticketData, translations) {
       ticketData.venta.fin_venta
     ).toLocaleString()}\n`
   );
-  await printer.write("=".repeat(48) + "\n");
+  await printer.write(`${SEPARATOR}\n`);
 
   // Encabezado de productos
   await printer.write(
-    `${translations.qty}   ${translations.product}                 ${translations.unit_price}    ${translations.product_total}\n`
+    `${translations.qty.padEnd(8)}${translations.product.padEnd(22)}${translations.unit_price.padStart(8)}${translations.product_total.padStart(8)}\n`
   );
-  await printer.write("-".repeat(48) + "\n");
+  await printer.write(`${LINE_SEPARATOR}\n`);
 
   // Lista de productos
   for (const pedido of ticketData.pedidos) {
     const cantidad = pedido.cantidad.toString().padEnd(5);
-    const precioUnitario = `$${pedido.precio_unitario.toFixed(2)}`.padStart(6);
-    const precioTotal = `$${pedido.precio_total.toFixed(2)}`.padStart(6);
-
+    const precioUnitario = `$${pedido.precio_unitario.toFixed(2)}`.padStart(8);
+    const precioTotal = `$${pedido.precio_total.toFixed(2)}`.padStart(8);
     const producto = pedido.producto_presentacion.nombre;
-    let lineasProducto = [];
-    if (producto.length > 20) {
-      let palabras = producto.split(" ");
-      let lineaActual = "";
-      for (let palabra of palabras) {
-        if ((lineaActual + palabra).length > 20) {
-          lineasProducto.push(lineaActual.trim());
-          lineaActual = palabra + " ";
-        } else {
-          lineaActual += palabra + " ";
-        }
-      }
-      lineasProducto.push(lineaActual.trim());
-    } else {
-      lineasProducto.push(producto);
-    }
 
+    // Dividir el nombre del producto
+    const lineasProducto = splitText(producto, 30);
+
+    // Primera línea con cantidad, producto, precios
     await printer.write(
-      `${cantidad}${lineasProducto[0].padEnd(
-        20
-      )}     ${precioUnitario}    ${precioTotal}\n`
+      `${cantidad}${lineasProducto[0].padEnd(20)}${precioUnitario}${precioTotal}\n`
     );
 
+    // Líneas adicionales del producto
     for (let i = 1; i < lineasProducto.length; i++) {
-      await printer.write(`      ${lineasProducto[i]}\n`);
+      await printer.write(`      ${lineasProducto[i]}\n`); // Indentación
     }
   }
 
-  await printer.write("-".repeat(48) + "\n");
+  await printer.write(`${LINE_SEPARATOR}\n`);
 
-  // Totales y descuentos
+  // Totales
   await printer.setAlignment(Align.Right);
   await printer.write(
-    `${translations.subtotal}: $${ticketData.cuenta_venta.subtotal.toFixed(
-      2
-    )}\n`
+    `${translations.subtotal}: $${ticketData.cuenta_venta.subtotal.toFixed(2)}\n`
   );
-  if (ticketData.cuenta_venta.descuento) {
+  if (ticketData.cuenta_venta.descuento > 0) {
     await printer.write(
-      `${translations.discount}: $${ticketData.cuenta_venta.descuento.toFixed(
-        2
-      )}\n`
+      `${translations.discount}: $${ticketData.cuenta_venta.descuento.toFixed(2)}\n`
     );
   }
   await printer.write(
-    `${translations.tip}: $${ticketData.cuenta_venta.propina_predeterminada}\n`
+    `${translations.tip}: $${ticketData.cuenta_venta.propina_predeterminada.toFixed(2)}\n`
   );
+  await printer.write("\x1B\x21\x30"); // Texto grande
   await printer.write(
     `${translations.total}: $${ticketData.cuenta_venta.total.toFixed(2)}\n`
   );
+  await printer.write("\x1B\x21\x00"); // Texto normal
 
-  // Información de pagos
+  // Pagos
   if (ticketData.pagos && ticketData.pagos.length > 0) {
-    await printer.write("=".repeat(48) + "\n");
+    await printer.write(`${SEPARATOR}\n`);
     await printer.write(`${translations.payments}\n`);
     for (const pago of ticketData.pagos) {
-      console.log(pago)
       await printer.write(
-        `${pago.tipo_pago.nombre}: $${pago.monto.toFixed(2)} ${
-          pago.tarjeta ? `(${pago.tarjeta})` : ""
+        `${pago.tipo_pago.nombre}: $${pago.monto.toFixed(2)}${
+          pago.tarjeta ? ` (${pago.tarjeta})` : ""
         }\n`
       );
-      // Existe pago con efectivo?
-      const hasTipoVentaId1 = ticketData.pagos.some(
-        (pago) => pago.tipo_pago.id === 1
-      );
-
-      // Abre gaveta si hay pago en efectivo
-      if (hasTipoVentaId1) {
-        await printer.drawer(Drawer.First);
-      }
     }
   }
 
-  // Información de crédito (si existe)
+  // Crédito
   if (ticketData.credito) {
-    await printer.write("=".repeat(48) + "\n");
+    await printer.write(`${SEPARATOR}\n`);
     await printer.write(
-      `${translations.credit}: $${ticketData.credito.total_credito.toFixed(
-        2
-      )}\n`
+      `${translations.credit}: $${ticketData.credito.total_credito.toFixed(2)}\n`
     );
     await printer.write(
       `${translations.num_installments}: ${ticketData.credito.num_cuotas}\n`
     );
   }
 
-  // Pie de página del ticket
+  // Pie del ticket
   await printer.setAlignment(Align.Center);
-  await printer.write("=".repeat(48) + "\n");
+  await printer.write(`${SEPARATOR}\n`);
   if (ticketData.local.pie_pagina_ticket) {
     await printer.write(`${ticketData.local.pie_pagina_ticket}\n`);
   }
   await printer.write(`${translations.thank_you}\n`);
   await printer.write(`${translations.come_again}\n`);
 
-  await printer.feed(6); // Alimentar papel
+  // Alimentar y cortar papel
+  await printer.feed(6);
   await printer.cutter();
-  // await printer.drawer(Drawer.First);
+
+  // Abrir gaveta si hay pagos en efectivo
+  if (ticketData.pagos.some((pago) => pago.tipo_pago.id === 1)) {
+    await printer.drawer(Drawer.First);
+  }
 }
 
 /**
@@ -638,41 +632,91 @@ async function designOrderSlipUnix(printer, ticketData, translations) {
  * Diseño de comanda para Windows
  */
 async function designOrderSlipWindows(printer, ticketData, translations) {
-  console.log(ticketData);
+  const SEPARATOR = "=".repeat(48);
+  const LINE_SEPARATOR = "-".repeat(48);
+  const STAR_SEPARATOR = "*".repeat(48);
+
+  // Helper para manejar texto largo
+  function splitText(text, length) {
+    const words = text.split(" ");
+    const lines = [];
+    let currentLine = "";
+
+    for (const word of words) {
+      if ((currentLine + word).length > length) {
+        lines.push(currentLine.trim());
+        currentLine = word + " ";
+      } else {
+        currentLine += word + " ";
+      }
+    }
+    lines.push(currentLine.trim());
+    return lines;
+  }
+
+  // Encabezado de la comanda
   await printer.feed(1);
   await printer.setAlignment(Align.Center);
-  await printer.write("\x1B\x21\x30");
+  await printer.write(`${STAR_SEPARATOR}\n`);
+  await printer.write("\x1B\x21\x30"); // Texto grande/negrita
   await printer.write(`${translations.order_slip}\n`);
-  await printer.write("\x1B\x21\x00"); //
-  await printer.write("=".repeat(48) + "\n");
-  await printer.write(`${translations.table}: ${ticketData.mesa}\n`);
-  await printer.write("=".repeat(48) + "\n");
+  await printer.write("\x1B\x21\x00"); // Restablecer texto normal
+  await printer.write(`${SEPARATOR}\n`);
 
+  // Información del área y la mesa
   await printer.setAlignment(Align.Left);
-  const espacio = String('').padEnd(8);
-  const notTexto = `Cant.   `.padEnd(2);
-  const notTexto1 = `Producto`.padEnd(2);
-  await printer.write(`${notTexto}${espacio}${notTexto1}\n`);
-  await printer.write("-".repeat(48) + "\n");
+  await printer.write(`${translations.area}: ${ticketData.area}\n`);
+  await printer.write(`${translations.table}: ${ticketData.mesa || translations.unassigned}\n`);
+  await printer.write(`${SEPARATOR}\n`);
+
+  // Encabezado de productos
+  await printer.write(`${translations.qty.padEnd(8)}${translations.product}\n`);
+  await printer.write(`${LINE_SEPARATOR}\n`);
+
+  // Detalle de pedidos
   for (const pedido of ticketData.pedidos) {
+    const cantidad = `${pedido.cantidad}`.padEnd(8);
+    const presentacion = pedido.presentacion || pedido.producto;
+    const lineasProducto = splitText(presentacion, 45);
 
+    // Primera línea del producto con cantidad
+    await printer.write(`${cantidad}${lineasProducto[0]}\n`);
 
-    const espacio = String('').padEnd(8);
-    const notTexto = `${pedido.cantidad} X `.padEnd(2);
-    const producto = `${pedido.producto}`.padEnd(2);
-    const presentacion = `${pedido.presentacion}`.padEnd(2);
-    await printer.write(`${notTexto}${espacio}${presentacion}\n`);
-    for (const modificador of pedido.modificadores) {
-      const sangria = String('').padEnd(15);
-      const espacioM = String('').padEnd(2);
-      const notTextoM = `${modificador.cantidad} X `.padEnd(2);
-      const mod = `${modificador.nombre}`.padEnd(2);
-      const nota = `${modificador.notaPedido}`.padEnd(2);
-      await printer.write(`${sangria}${notTextoM}${espacioM}${mod}*\n`);
-      await printer.write(`${sangria} - ${nota}*\n`);
+    // Líneas adicionales del nombre del producto
+    for (let i = 1; i < lineasProducto.length; i++) {
+      await printer.write(`        ${lineasProducto[i]}\n`);
+    }
+
+    // Modificadores
+    if (pedido.modificadores && pedido.modificadores.length > 0) {
+      for (const modificador of pedido.modificadores) {
+        const modCantidad = `${modificador.cantidad}x `.padStart(15);
+        const modNombre = splitText(modificador.nombre, 40);
+
+        // Primera línea del modificador
+        await printer.write(` ${modCantidad}${modNombre[0].padEnd(5)}*\n`);
+
+        // Líneas adicionales del modificador
+        for (let i = 1; i < modNombre.length; i++) {
+          await printer.write(`      ${modNombre[i]}\n`);
+        }
+      }
+    }
+
+    // Nota del pedido
+    if (pedido.notaPedido) {
+      const lineasNota = splitText(pedido.notaPedido, 40);
+      await printer.write(`  - ${translations.note}:\n`);
+      for (const linea of lineasNota) {
+        await printer.write(`    ${linea}\n`);
+      }
     }
   }
 
+  // Separador final
+  await printer.write(`${STAR_SEPARATOR}\n`);
+
+  // Alimentar y cortar papel
   await printer.feed(6);
   await printer.cutter();
 }
