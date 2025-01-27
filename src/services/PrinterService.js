@@ -3,17 +3,23 @@ const { exec } = require("child_process");
 const os = require("os");
 
 class PrinterService {
-  // Detecta estado de impresora WINDOWS
+  // Detecta estado de impresora WINDOWS usando Get-WmiObject
   async isPrinterConnectedWindows(printerName) {
-    console.log("Comando de comprobacion -> ", `powershell -Command "Get-Printer | Where-Object { $_.Name -eq '${printerName}' }"`)
+    console.log(
+      "Comando de comprobación -> ",
+      `powershell -Command "Get-WmiObject -Query \\"SELECT * FROM Win32_Printer WHERE Name = '${printerName}'\\" | Select-Object Name, WorkOffline"`
+    );
+
     return new Promise((resolve) => {
       exec(
-        `powershell -Command "Get-Printer | Where-Object { $_.Name -eq '${printerName}' }"`,
+        `powershell -Command "Get-WmiObject -Query \\"SELECT * FROM Win32_Printer WHERE Name = '${printerName}'\\" | Select-Object Name, WorkOffline"`,
         (error, stdout) => {
           if (error || !stdout.trim()) {
-            resolve(false); // Impresora no encontrada o no conectada
+            console.error("Error al ejecutar el comando PowerShell:", error);
+            resolve(false); // Impresora no encontrada o error en el comando
           } else {
-            resolve(true); // Impresora conectada
+            const isOffline = stdout.includes("True"); // Verificamos si WorkOffline es True
+            resolve(!isOffline); // Conectada si WorkOffline es False
           }
         }
       );
@@ -40,11 +46,12 @@ class PrinterService {
         os.platform() === "win32"
           ? await this.isPrinterConnectedWindows(printerName)
           : await this.isPrinterConnectedUnix(printerName);
-  
+
       if (!isConnected) {
-        throw new Error("La impresora no está conectada o activa.");
+        console.log("La impresora no está conectada o activa.");
+        return false;
       }
-  
+
       console.log("Conexión con la impresora verificada.");
       return true;
     } catch (error) {
