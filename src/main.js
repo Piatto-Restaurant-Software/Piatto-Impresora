@@ -117,7 +117,6 @@ function startServer() {
 function stopServer() {
   if (server) {
     server.close(() => {
-      console.log("Servidor Express detenido.");
     });
     server = null;
   }
@@ -306,6 +305,10 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
   try {
     const { data, printerName, ticketType } = req.body;
 
+    console.log('DATA RECIBIDA DESDE POST: ', data);
+
+    console.log('TIPO DE IMPRESION: ', ticketType);
+
     // Manejar los dos casos de printerName
     let printerNameStr;
 
@@ -332,15 +335,18 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
       throw new Error("Formato de data inválido");
     }
 
+
     // Verificar conexión de la impresora
     const isConnected = await printerService.testPrinterConnection(printerNameStr);
+
+
+
     if (!isConnected) {
       return res.status(400).send({
         success: false,
         message: "La impresora no está conectada o activa.",
       });
     }
-    console.log("Impresora conectada:", printerNameStr);
 
     // Agregar el trabajo de impresión a la cola con la prioridad basada en el tipo de ticket
     printQueue.addJob(async () => {
@@ -356,7 +362,6 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
       // Ejecutar la impresión
       await printTicket(dataToPrint, printerInfo, translations, ticketType);
 
-      console.log(`Impresión completada: ${ticketType}`);
     }, ticketType);
 
     // Respuesta inmediata al cliente
