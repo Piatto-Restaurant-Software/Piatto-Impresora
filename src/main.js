@@ -348,21 +348,59 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
       });
     }
 
-    // Agregar el trabajo de impresión a la cola con la prioridad basada en el tipo de ticket
-    printQueue.addJob(async () => {
-      const printerInfo = await PrinterService.getNamePrinter(printerNameStr);
+       // Obtener idioma del encabezado Accept-Language
+    const locale = req.headers["accept-language"] || "es";
+    i18n.setLocale(locale);
+    const translations = loadedLocales[locale]?.[["precuenta"]] || {};
 
-      // Obtener el idioma del encabezado Accept-Language, o usa 'es' como predeterminado
-      const locale = req.headers["accept-language"] || "es";
-      i18n.setLocale(locale);
+    // Impresión para Comanda (varios elementos)
+    if (ticketType === "Comanda" && Array.isArray(data)) {
+      for (const comanda of data) {
+        console.log('DATA DEL ARREGLO COMANDA:', comanda)
+        if (!comanda.impresora || !comanda.impresora.nombre) {
+          console.warn("Comanda sin impresora definida, se omite:", comanda);
+          continue;
+        }
 
-      // Cargar traducciones localizadas para el ticket
-      const translations = loadedLocales[locale]?.[["precuenta"]] || {};
+        printQueue.addJob(async () => {
+          const printerInfo = await PrinterService.getNamePrinter(comanda.impresora.nombre);
 
-      // Ejecutar la impresión
-      await printTicket(dataToPrint, printerInfo, translations, ticketType);
+          await printTicket(comanda, printerInfo, translations, ticketType);
+        }, ticketType);
+      }
+    } else {
+      // Impresión para otros tipos (Precuenta, full, Cierre, etc.)
+      let dataToPrint;
+      if (Array.isArray(data)) {
+        dataToPrint = data[0];
+      } else if (typeof data === "object") {
+        dataToPrint = data;
+      } else {
+        throw new Error("Formato de data inválido");
+      }
 
-    }, ticketType);
+      printQueue.addJob(async () => {
+        const printerInfo = await PrinterService.getNamePrinter(printerNameStr);
+
+        await printTicket(dataToPrint, printerInfo, translations, ticketType);
+      }, ticketType);
+    }
+
+    // // Agregar el trabajo de impresión a la cola con la prioridad basada en el tipo de ticket
+    // printQueue.addJob(async () => {
+    //   const printerInfo = await PrinterService.getNamePrinter(printerNameStr);
+
+    //   // Obtener el idioma del encabezado Accept-Language, o usa 'es' como predeterminado
+    //   const locale = req.headers["accept-language"] || "es";
+    //   i18n.setLocale(locale);
+
+    //   // Cargar traducciones localizadas para el ticket
+    //   const translations = loadedLocales[locale]?.[["precuenta"]] || {};
+
+    //   // Ejecutar la impresión
+    //   await printTicket(dataToPrint, printerInfo, translations, ticketType);
+
+    // }, ticketType);
 
     // Respuesta inmediata al cliente
     res.send({

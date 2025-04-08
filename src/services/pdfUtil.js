@@ -204,8 +204,31 @@ async function designTicketCierreWindows(printer, data, translations) {
   await printRow("Total Apertura:", data.total_apertura);
   await printRow("Total efectivo:", data.total_venta_efectivo);
   await printRow("Total tarjeta:", data.total_venta_tarjeta);
+  await printRow("Total transferencia:", data.total_venta_transferencia);
   await printRow("Total en Caja (efectivo):", data.total_caja_efectivo);
   await printRow("Total en Caja (general):", data.total_caja_general);
+  await printRow("Venta credito general:", data.venta_credito_general);
+  await printRow("Venta credito intermediario:", data.total_credito_intermediarios);
+  // Verifica si hay detalles de ventas al crédito intermediario
+  const ventaCreditoIntermediarios = data?.venta_credito_intermediarios;
+
+  if (Array.isArray(ventaCreditoIntermediarios) && ventaCreditoIntermediarios.length > 0) {
+    await printer.write(`${LINE_SEPARATOR}\n`);
+
+    for (const venta of ventaCreditoIntermediarios) {
+      const nombre = (venta.nombre || "-").toString();
+      const total = (venta.total || "0").toString();
+
+      // Alinear nombre a la izquierda y total a la derecha
+      const linea = `${nombre.padEnd(30)}${total.padStart(18)}\n`;
+      await printer.write(linea);
+    }
+
+    await printer.write(`${LINE_SEPARATOR}\n`);
+  }
+
+  
+
   await printer.write(`${SEPARATOR}\n`);
 
   // Ingresos y egresos
@@ -217,6 +240,7 @@ async function designTicketCierreWindows(printer, data, translations) {
   await printRow("Egresos:", data.total_gastos);
   await printRow("Propinas con efectivo:", data.total_propina_predeterminada_efectivo);
   await printRow("Propinas con tarjeta:", data.total_propina_predeterminada_tarjeta);
+  await printRow("Propinas con transferencia:", data.total_propina_predeterminada_transferencia);
   await printRow("Créditos cobrados efectivo:", data.total_creditos_cobrados_efectivo);
   await printRow("Créditos cobrados tarjeta:", data.total_creditos_cobrados_tarjeta);
   await printer.write(`${SEPARATOR}\n`);
@@ -268,8 +292,10 @@ async function designTicketCierreWindows(printer, data, translations) {
   await printer.setAlignment(Align.Center);
   await printer.write("ACTIVIDAD\n");
   await printer.write(`${SEPARATOR}\n`);
+  
 
   await printRow("Subtotales:", data.subtotales);
+  await printRow("Impuestos:", data.total_impuestos);
   await printRow("Totales:", data.totales);
   await printer.write(`${SEPARATOR}\n`);
 
@@ -296,6 +322,8 @@ async function printTicketWindows(
 
     console.log('DATA RECIBIDA DESDE FUNCIÓN PRINCIPAL');
     console.log(ticketData);
+
+    console.log('TICKET TIPE: ', ticketType)
 
     if (ticketType === "full") {
       await designFullTicket(printer, ticketData, translations);
