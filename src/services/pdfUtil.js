@@ -156,8 +156,6 @@ async function designTicketCierreWindows(printer, data, translations) {
   const SEPARATOR = "=".repeat(48);
   const LINE_SEPARATOR = "-".repeat(48);
 
-  console.log('DATA CIERRE: ', data);
-
   // Helper para dividir texto largo
   function splitText(text, length) {
     const words = text.split(" ");
@@ -196,20 +194,30 @@ async function designTicketCierreWindows(printer, data, translations) {
     await printer.write(`${label.padEnd(30)}${value.padStart(18)}\n`);
     
   }
-
   await printer.setAlignment(Align.Center);
   await printer.write("RESUMEN DE CAJA\n");
   await printer.write(`${SEPARATOR}\n`);
 
   await printRow("Total Apertura:", data.total_apertura);
-  await printRow("Total efectivo:", data.total_venta_efectivo);
-  await printRow("Total tarjeta:", data.total_venta_tarjeta);
-  await printRow("Total transferencia:", data.total_venta_transferencia);
+
+  const metodosPagos = data?.totales_metodos;
+
+  if (Array.isArray(metodosPagos) && metodosPagos.length > 0) {
+    for (const metodo of metodosPagos) {
+      const nombre = (metodo.metodo || "-").toString();
+      const total = (metodo.total || "0").toString();
+      printRow(`${nombre}:`, total);
+    }
+
+  }
+
+
+
   await printRow("Total en Caja (efectivo):", data.total_caja_efectivo);
   await printRow("Total en Caja (general):", data.total_caja_general);
   await printRow("Venta credito general:", data.venta_credito_general);
   await printRow("Venta credito intermediario:", data.total_credito_intermediarios);
-  // Verifica si hay detalles de ventas al crédito intermediario
+  
   const ventaCreditoIntermediarios = data?.venta_credito_intermediarios;
 
   if (Array.isArray(ventaCreditoIntermediarios) && ventaCreditoIntermediarios.length > 0) {
@@ -238,11 +246,29 @@ async function designTicketCierreWindows(printer, data, translations) {
 
   await printRow("Ingresos:", data.total_ingresos);
   await printRow("Egresos:", data.total_gastos);
-  await printRow("Propinas con efectivo:", data.total_propina_predeterminada_efectivo);
-  await printRow("Propinas con tarjeta:", data.total_propina_predeterminada_tarjeta);
-  await printRow("Propinas con transferencia:", data.total_propina_predeterminada_transferencia);
-  await printRow("Créditos cobrados efectivo:", data.total_creditos_cobrados_efectivo);
-  await printRow("Créditos cobrados tarjeta:", data.total_creditos_cobrados_tarjeta);
+
+  const propinasArr = data?.totales_propina_predeterminada;
+
+  if (Array.isArray(propinasArr) && propinasArr.length > 0) {
+    for (const propina of propinasArr) {
+      const nombre = (propina.metodo || "-").toString();
+      const total = (propina.total || "0").toString();
+      printRow(`${nombre}:`, total);
+    }
+
+  }
+
+  const creditosCobradosArr = data?.totales_creditos_cobrados;
+
+  if (Array.isArray(creditosCobradosArr) && creditosCobradosArr.length > 0) {
+    for (const credito of creditosCobradosArr) {
+      const nombre = (credito.metodo || "-").toString();
+      const total = (credito.total || "0").toString();
+      printRow(`${nombre}:`, total);
+    }
+
+  }
+
   await printer.write(`${SEPARATOR}\n`);
 
   // Descuentos
