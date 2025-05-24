@@ -815,7 +815,8 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
   await printer.write(`N: ${ticketData.numero_comanda} \n`);
   await printer.write("\x1B\x21\x00");
   await printer.write(`${translations.area}: ${ticketData.area}\n`);
-  await printer.write(`${translations.table}: ${ticketData.mesa || translations.unassigned}\n`);
+  await printer.write(`${ticketData.mesa || translations.unassigned}\n`);
+  await printer.write(`Cantidad personas: ${ticketData.cantidad_personas || translations.unassigned}\n`);
   await printer.write(`${'Mesero'}: ${ticketData.mesero}\n`);
   await printer.write(`${'Fecha'}: ${ticketData.fecha}\n`);
   await printer.write(`${SEPARATOR}\n`);

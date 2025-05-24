@@ -158,8 +158,27 @@ function publishBonjourService(retries = 5) {
   });
 }
 
+function getBroadcastAddress() {
+  const nets = os.networkInterfaces();
+
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal && net.address && net.netmask) {
+        const ipParts = net.address.split('.').map(Number);
+        const maskParts = net.netmask.split('.').map(Number);
+        const broadcastParts = ipParts.map((ip, i) => ip | (~maskParts[i] & 255));
+        return broadcastParts.join('.');
+      }
+    }
+  }
+
+  return '255.255.255.255'; // Fallback seguro
+}
+
 function startUDPBroadcast() {
   const localIP = getLocalIPAddress();
+  const broadcastIP = getBroadcastAddress();
+
   const message = JSON.stringify({
     ip: localIP,
     port: 3001,
@@ -170,16 +189,19 @@ function startUDPBroadcast() {
 
   udpServer.bind(() => {
     udpServer.setBroadcast(true);
+    console.log('[UDP] Socket ligado en', udpServer.address(), '— enviando cada 1 s a', broadcastIP);
+
     setInterval(() => {
-      const subnetBroadcast = localIP.replace(/\d+$/, "255");
-      udpServer.send(message, 0, message.length, 12345, subnetBroadcast);
-    }, 1000); // Envía el mensaje cada segundo
+      console.debug('[UDP] → Broadcast tick', new Date().toISOString());
+      udpServer.send(message, 0, message.length, 12345, broadcastIP);
+    }, 1000);
   });
 
   udpServer.on("error", (err) => {
     console.error("Error en el servidor UDP:", err.message);
   });
 }
+
 
 // Configuración de WebSocket
 function initializeWebSocket() {
@@ -220,30 +242,49 @@ function broadcastPrinterState(printerState) {
 }
 
 function getLocalIPAddress() {
-  const nets = networkInterfaces();
+  const nets = os.networkInterfaces();
 
-  // Priorizar la interfaz Ethernet
-  for (const [name, interfaces] of Object.entries(nets)) {
-    if (name.toLowerCase().includes("ethernet")) {
-      for (const net of interfaces) {
-        if (net.family === "IPv4" && !net.internal) {
-          return net.address;
-        }
-      }
-    }
-  }
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      const isIPv4 = net.family === 'IPv4';
+      const isNotInternal = !net.internal;
+      const isValidInterface = name.toLowerCase().includes('wi-fi') || name.toLowerCase().includes('ethernet');
 
-  // Si no encuentra Ethernet, toma la primera IPv4 no interna
-  for (const interfaces of Object.values(nets)) {
-    for (const net of interfaces) {
-      if (net.family === "IPv4" && !net.internal) {
+      if (isIPv4 && isNotInternal && isValidInterface) {
         return net.address;
       }
     }
   }
 
-  return "127.0.0.1";
+  return '127.0.0.1';
 }
+
+
+// function getLocalIPAddress() {
+//   const nets = networkInterfaces();
+
+//   // Priorizar la interfaz Ethernet
+//   for (const [name, interfaces] of Object.entries(nets)) {
+//     if (name.toLowerCase().includes("ethernet")) {
+//       for (const net of interfaces) {
+//         if (net.family === "IPv4" && !net.internal) {
+//           return net.address;
+//         }
+//       }
+//     }
+//   }
+
+//   // Si no encuentra Ethernet, toma la primera IPv4 no interna
+//   for (const interfaces of Object.values(nets)) {
+//     for (const net of interfaces) {
+//       if (net.family === "IPv4" && !net.internal) {
+//         return net.address;
+//       }
+//     }
+//   }
+
+//   return "127.0.0.1";
+// }
 
 ipcMain.handle("request-server-info", async () => {
   const localIP = getLocalIPAddress();
