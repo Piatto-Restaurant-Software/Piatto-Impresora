@@ -1,92 +1,97 @@
 const { app, ipcMain, globalShortcut } = require("electron");
+const path = require("path");
+const fs = require("fs");
+const os = require("os");
+
 const cors = require("cors");
 const express = require("express");
 const bodyParser = require("body-parser");
-const { printTicket } = require("./services/pdfUtil");
-const printQueue = require("./services/PrintQueue");
-const os = require("os");
-const path = require("path");
 const bonjour = require("bonjour")();
-const PrinterService = require("./services/PrinterService");
-const UIService = require("./services/UIService");
 const WebSocket = require("ws");
 const i18n = require("i18n");
-const fs = require("fs");
 const dgram = require("dgram");
+
+const { setAppDataPath } = require("./services/pdfUtil");
+const UIService = require("./services/UIService");
+const PrinterService = require("./services/PrinterService");
+const printQueue = require("./services/PrintQueue");
+const { printTicket } = require("./services/pdfUtil");
 
 let server;
 let wss;
 const port = 3002;
 let lastPrinterState = [];
 const uiService = new UIService();
-const gotTheLock = app.requestSingleInstanceLock();
 const printerService = new PrinterService();
 
-if (!gotTheLock) {
-  // Si no se puede adquirir el lock, significa que ya hay una instancia corriendo.
-  app.quit();
-} else {
-  // Este evento se ejecuta cuando el usuario intenta abrir otra instancia de la aplicación.
+// Inicialización principal de la aplicación
+app.whenReady().then(() => {
+  const gotTheLock = app.requestSingleInstanceLock();
+
+  if (!gotTheLock) {
+    app.quit();
+    return;
+  }
+
+  // Configurar el manejo de segunda instancia
   app.on("second-instance", (event, argv, workingDirectory) => {
     if (uiService.window) {
-      if (uiService.window.isMinimized()) {
-        uiService.window.restore();
-      }
+      if (uiService.window.isMinimized()) uiService.window.restore();
       uiService.window.show();
       uiService.window.focus();
     }
   });
 
-  // Inicialización principal de la aplicación
-  app.whenReady().then(() => {
-    // Configurar inicio automático
-    app.setLoginItemSettings({
-      openAtLogin: true,
-      path: app.getPath("exe"),
-      args: ["--hidden"], // Agregas el argumento "--hidden" para inicio automático
-    });
-
-    const isHidden = process.argv.includes("--hidden");
-
-    if (isHidden) {
-      uiService.createTray(); // Solo crea la bandeja del sistema
-    } else {
-      uiService.createMainWindow(); // Crea la ventana principal
-      uiService.createTray();
-    }
-
-    // Configurar WebSocket y atajos globales
-    initializeWebSocket();
-    globalShortcut.register("CommandOrControl+Q", () => {
-      uiService.isQuitting = true;
-      app.quit();
-    });
-
-    // Inicia el servidor solo si no está corriendo
-    startServer();
+  // Configurar inicio automático
+  app.setLoginItemSettings({
+    openAtLogin: true,
+    path: app.getPath("exe"),
+    args: ["--hidden"],
   });
 
-  app.on("before-quit", () => {
+  // Configurar la ruta antes de cualquier operación que use pdfUtil
+  setAppDataPath(app.getPath("userData"));
+
+  const isHidden = process.argv.includes("--hidden");
+
+  if (isHidden) {
+    uiService.createTray(); // Solo crea la bandeja del sistema
+  } else {
+    uiService.createMainWindow(); // Crea la ventana principal
+    uiService.createTray();
+  }
+
+  // Configurar WebSocket y atajos globales
+  initializeWebSocket();
+  globalShortcut.register("CommandOrControl+Q", () => {
     uiService.isQuitting = true;
-    globalShortcut.unregisterAll();
-    stopServer();
-    bonjour.unpublishAll(() => bonjour.destroy());
+    app.quit();
   });
 
-  app.on("will-quit", () => {
-    globalShortcut.unregisterAll();
-    stopServer();
-    bonjour.unpublishAll(() => bonjour.destroy());
-  });
+  // Inicia el servidor solo si no está corriendo
+  startServer();
+});
 
-  process.on("uncaughtException", (error) => {
-    console.error("Uncaught Exception:", error);
-  });
+app.on("before-quit", () => {
+  uiService.isQuitting = true;
+  globalShortcut.unregisterAll();
+  stopServer();
+  bonjour.unpublishAll(() => bonjour.destroy());
+});
 
-  process.on("unhandledRejection", (reason, promise) => {
-    console.error("Unhandled Rejection at:", promise, "reason:", reason);
-  });
-}
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+  stopServer();
+  bonjour.unpublishAll(() => bonjour.destroy());
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
 
 function startServer() {
   if (!server) {
@@ -113,8 +118,7 @@ function startServer() {
 
 function stopServer() {
   if (server) {
-    server.close(() => {
-    });
+    server.close(() => {});
     server = null;
   }
 }
@@ -157,20 +161,37 @@ function publishBonjourService(retries = 5) {
 
 function getBroadcastAddress() {
   const nets = os.networkInterfaces();
+  const preferredInterfaces = ["Wi-Fi", "Ethernet", "en0", "eth0"];
 
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name]) {
-      if (net.family === 'IPv4' && !net.internal && net.address && net.netmask) {
-        const ipParts = net.address.split('.').map(Number);
-        const maskParts = net.netmask.split('.').map(Number);
+  for (const name of preferredInterfaces) {
+    const ifaceList = nets[name];
+    if (!ifaceList) continue;
+
+    for (const iface of ifaceList) {
+      if (iface.family === "IPv4" && !iface.internal && iface.netmask) {
+        const ipParts = iface.address.split('.').map(Number);
+        const maskParts = iface.netmask.split('.').map(Number);
         const broadcastParts = ipParts.map((ip, i) => ip | (~maskParts[i] & 255));
         return broadcastParts.join('.');
       }
     }
   }
 
-  return '255.255.255.255'; // Fallback seguro
+  // Fallback: escoge la primera IPv4 no interna con netmask
+  for (const ifaceList of Object.values(nets)) {
+    for (const iface of ifaceList) {
+      if (iface.family === "IPv4" && !iface.internal && iface.netmask) {
+        const ipParts = iface.address.split('.').map(Number);
+        const maskParts = iface.netmask.split('.').map(Number);
+        const broadcastParts = ipParts.map((ip, i) => ip | (~maskParts[i] & 255));
+        return broadcastParts.join('.');
+      }
+    }
+  }
+
+  return "255.255.255.255"; // fallback seguro
 }
+
 
 function startUDPBroadcast() {
   const localIP = getLocalIPAddress();
@@ -182,38 +203,38 @@ function startUDPBroadcast() {
     ip: localIP,
     port: 3001,
     serviceName: "POS-Impresora",
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   const udpServer = dgram.createSocket("udp4");
 
-  udpServer.on('listening', () => {
+  udpServer.on("listening", () => {
     const address = udpServer.address();
     console.log(`[UDP] Escuchando en ${address.address}:${address.port}`);
     udpServer.setBroadcast(true);
   });
 
   udpServer.bind(() => {
-    console.log('[UDP] Iniciando broadcast...');
-    
+    console.log("[UDP] Iniciando broadcast...");
+
     // Enviar inmediatamente al iniciar
     udpServer.send(message, 0, message.length, 12345, broadcastIP, (err) => {
-      if (err) console.error('[UDP] Error en primer envío:', err);
+      if (err) console.error("[UDP] Error en primer envío:", err);
     });
 
     // Configurar intervalo regular
     const interval = setInterval(() => {
       const now = new Date().toISOString();
-     // console.debug(`[UDP] Enviando broadcast a ${now}`);
+      // console.debug(`[UDP] Enviando broadcast a ${now}`);
       udpServer.send(message, 0, message.length, 12345, broadcastIP, (err) => {
-        if (err) console.error('[UDP] Error en envío periódico:', err);
+        if (err) console.error("[UDP] Error en envío periódico:", err);
       });
     }, 1000);
 
     // Limpiar al cerrar
-    udpServer.on('close', () => {
+    udpServer.on("close", () => {
       clearInterval(interval);
-      console.log('[UDP] Broadcast detenido');
+      console.log("[UDP] Broadcast detenido");
     });
   });
 
@@ -223,23 +244,28 @@ function startUDPBroadcast() {
 }
 
 // Configuración de WebSocket
+
 function initializeWebSocket() {
   if (!wss) {
     wss = new WebSocket.Server({ port });
 
+    // Solo obtener impresoras al iniciar
+    PrinterService.getAllConnectedPrinters()
+      .then((currentPrinters) => {
+        lastPrinterState = currentPrinters;
+        broadcastPrinterState(currentPrinters);
+        console.log("✅ Impresoras detectadas al iniciar:", currentPrinters);
+      })
+      .catch((err) => {
+        console.error("Error al obtener impresoras al iniciar:", err);
+      });
+
     wss.on("connection", (ws) => {
       sendPrinterState(ws);
 
-      setInterval(async () => {
-        const currentPrinters = await PrinterService.getAllConnectedPrinters();
-
-        if (
-          JSON.stringify(currentPrinters) !== JSON.stringify(lastPrinterState)
-        ) {
-          lastPrinterState = currentPrinters;
-          broadcastPrinterState(currentPrinters);
-        }
-      }, 5000);
+      ws.on("close", () => {
+        // No hay intervalos que limpiar
+      });
     });
 
     wss.on("error", (error) => {
@@ -261,16 +287,15 @@ function broadcastPrinterState(printerState) {
 }
 
 function getLocalIPAddress() {
-
   const nets = os.networkInterfaces();
-  const preferredOrder = ['Wi-Fi', 'Ethernet', 'en0', 'eth0'];
+  const preferredOrder = ["Wi-Fi", "Ethernet", "en0", "eth0"];
 
   // Buscar interfaces en el orden preferido
   for (const name of preferredOrder) {
     const net = nets[name];
     if (net) {
       for (const iface of net) {
-        if (iface.family === 'IPv4' && !iface.internal) {
+        if (iface.family === "IPv4" && !iface.internal) {
           return iface.address;
         }
       }
@@ -280,13 +305,13 @@ function getLocalIPAddress() {
   // Fallback: tomar la primera IPv4 no interna
   for (const interfaces of Object.values(nets)) {
     for (const iface of interfaces) {
-      if (iface.family === 'IPv4' && !iface.internal) {
+      if (iface.family === "IPv4" && !iface.internal) {
         return iface.address;
       }
     }
   }
 
-  return '127.0.0.1';
+  return "127.0.0.1";
 }
 
 ipcMain.handle("request-server-info", async () => {
@@ -305,7 +330,7 @@ expressApp.get("/api/v1/server/status", (req, res) => {
     port: 3001,
     uptime: process.uptime(),
     lastPrinterCheck: new Date().toISOString(),
-    printers: lastPrinterState
+    printers: lastPrinterState,
   };
   res.send(status);
 });
@@ -361,159 +386,305 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
   try {
     const { data, printerName, ticketType } = req.body;
 
-    console.log('DATA RECIBIDA DESDE POST: ', data);
-    console.log('TIPO DE IMPRESION: ', ticketType);
+    console.log("DATA RECIBIDA DESDE POST: ", data);
+    console.log("TIPO DE IMPRESION: ", ticketType);
 
-    // Manejar los dos casos de printerName
-    let printerNameStr;
+    // Manejar printerName (string u objeto)
+    const printerNameStr =
+      typeof printerName === "string" ? printerName : printerName?.nombre;
 
-    if (typeof printerName === "string") {
-      printerNameStr = printerName;
-    } else if (typeof printerName === "object" && printerName.nombre) {
-      printerNameStr = printerName.nombre;
-    } else {
-      throw new Error("Formato de printerName invalido");
+    if (!printerNameStr) {
+      throw new Error("Formato de printerName inválido");
     }
 
-    // Validar que data no esté vacío
+    // Validar data
     if (!data || (Array.isArray(data) && data.length === 0)) {
-      throw new Error("El campo data esta vacio");
+      throw new Error("El campo data está vacío");
     }
 
-    // Obtener idioma del encabezado Accept-Language
+    // Configurar idioma
     const locale = req.headers["accept-language"] || "es";
     i18n.setLocale(locale);
-    const translations = loadedLocales[locale]?.[["precuenta"]] || {};
+    const translations = loadedLocales[locale]?.precuenta || {};
 
-    // Impresión para Comanda (varios elementos)
+    // Impresión para Comanda (múltiples impresoras)
     if (ticketType === "Comanda" && Array.isArray(data)) {
-      let atLeastOnePrinted = false;
-      let errors = [];
-
-      for (const comanda of data) {
-        console.log('DATA DEL ARREGLO COMANDA:', comanda);
-        
-        if (!comanda.impresora || !comanda.impresora.nombre) {
-          const errorMsg = `Comanda ${comanda.numero_comanda} sin impresora definida`;
-          console.warn(errorMsg);
-          errors.push(errorMsg);
-          continue;
-        }
-
-        // Validar tipo de conector (solo USB = 1)
-        if (comanda.impresora.tipo_conector_id !== 1) {
-          const errorMsg = `Comanda ${comanda.numero_comanda} omitida - Impresora ${comanda.impresora.nombre} no es USB (tipo_conector_id=${comanda.impresora.tipo_conector_id})`;
-          console.warn(errorMsg);
-          errors.push(errorMsg);
-          continue;
-        }
-
-        try {
-          const isConnected = await printerService.testPrinterConnection(comanda.impresora.nombre);
-
-          if (!isConnected) {
-            const errorMsg = `Impresora ${comanda.impresora.nombre} para comanda ${comanda.numero_comanda} no esta conectada`;
-            console.warn(errorMsg);
-            errors.push(errorMsg);
-            continue;
-          }
-
-          printQueue.addJob(async () => {
-            const printerInfo = await PrinterService.getNamePrinter(comanda.impresora.nombre);
-            await printTicket(comanda, printerInfo, translations, ticketType);
-          }, ticketType);
-
-          atLeastOnePrinted = true;
-          console.log(`Comanda ${comanda.numero_comanda} encolada para impresion en ${comanda.impresora.nombre}`);
-
-        } catch (error) {
-          const errorMsg = `Error al procesar comanda ${comanda.numero_comanda}: ${error.message}`;
-          console.error(errorMsg);
-          errors.push(errorMsg);
-        }
-      }
-
-      if (!atLeastOnePrinted) {
-        throw new Error(`Ninguna comanda pudo ser impresa. Errores: ${errors.join('; ')}`);
-      }
-
-      // Respuesta con advertencias si hubo errores parciales
-      if (errors.length > 0) {
-        res.send({
-          success: true,
-          message: 'Trabajo de impresion encolado con algunas advertencias',
-          warnings: errors
-        });
-      } else {
-        res.send({
-          success: true,
-          message: 'Todas las comandas encoladas para impresion correctamente'
-        });
-      }
-
-      return; // Salir temprano para evitar ejecutar el resto del código
-
-    } else {
-      // Impresión para otros tipos (Precuenta, full, Cierre, etc.)
-      let dataToPrint;
-      if (Array.isArray(data)) {
-        dataToPrint = data[0];
-      } else if (typeof data === "object") {
-        dataToPrint = data;
-      } else {
-        throw new Error("Formato de data invalido");
-      }
-
-      // Verificar conexión de la impresora para tickets no-Comanda
-      const isConnected = await printerService.testPrinterConnection(printerNameStr);
-      if (!isConnected) {
-        return res.status(400).send({
-          success: false,
-          message: "La impresora no esta conectada o activa.",
-        });
-      }
-
-      printQueue.addJob(async () => {
-        const printerInfo = await PrinterService.getNamePrinter(printerNameStr);
-        await printTicket(dataToPrint, printerInfo, translations, ticketType);
-      }, ticketType);
-
-      // Respuesta inmediata al cliente
-      res.send({
-        success: true,
-        message: `Trabajo de impresion encolado: ${ticketType}`,
-      });
+      const results = await processBatchPrint(data, translations, ticketType);
+      handleBatchResponse(res, results);
+      return;
     }
 
+    // Impresión para otros tipos (Precuenta, Cierre, etc.)
+    const dataToPrint = Array.isArray(data) ? data[0] : data;
+    await processSinglePrint(
+      dataToPrint,
+      printerNameStr,
+      translations,
+      ticketType,
+      res
+    );
   } catch (error) {
-    console.error("Error al encolar la impresion:", error);
+    console.error("Error al encolar la impresión:", error);
     res.status(500).send({
       success: false,
-      message: "Error al encolar la impresion",
+      message: "Error al encolar la impresión",
       error: error.message,
     });
   }
 });
 
+// --- Funciones auxiliares ---
+async function processBatchPrint(data, translations, ticketType) {
+  const results = { success: [], errors: [] };
+
+  for (const comanda of data) {
+    try {
+      if (!comanda.impresora?.nombre) {
+        throw new Error(
+          `Comanda ${comanda.numero_comanda} sin impresora definida`
+        );
+      }
+
+      const isConnected = await new PrinterService().testPrinterConnection(
+        comanda.impresora.nombre
+      );
+      if (!isConnected) {
+        throw new Error(
+          `Impresora ${comanda.impresora.nombre} no está conectada`
+        );
+      }
+
+      printQueue.addJob(async () => {
+        await printTicket(
+          comanda,
+          comanda.impresora.nombre,
+          translations,
+          ticketType
+        );
+      }, ticketType);
+
+      results.success.push(comanda.numero_comanda);
+    } catch (error) {
+      results.errors.push(`${comanda.numero_comanda}: ${error.message}`);
+    }
+  }
+
+  return results;
+}
+
+async function processSinglePrint(
+  data,
+  printerName,
+  translations,
+  ticketType,
+  res
+) {
+  const isConnected = await new PrinterService().testPrinterConnection(
+    printerName
+  );
+  if (!isConnected) {
+    return res.status(400).send({
+      success: false,
+      message: "La impresora no está conectada o activa.",
+    });
+  }
+
+  printQueue.addJob(async () => {
+    await printTicket(data, printerName, translations, ticketType);
+  }, ticketType);
+
+  res.send({
+    success: true,
+    message: `Trabajo de impresión encolado: ${ticketType}`,
+  });
+}
+
+function handleBatchResponse(res, results) {
+  if (results.success.length === 0) {
+    throw new Error(
+      `Ninguna comanda pudo imprimirse. Errores: ${results.errors.join("; ")}`
+    );
+  }
+
+  res.send({
+    success: true,
+    message: `${results.success.length} comanda(s) encoladas. ${results.errors.length} error(es)`,
+    warnings: results.errors,
+  });
+}
+
+// expressApp.post("/api/v1/impresion/test", async (req, res) => {
+//   try {
+//     const { data, printerName, ticketType } = req.body;
+
+//     console.log('DATA RECIBIDA DESDE POST: ', data);
+//     console.log('TIPO DE IMPRESION: ', ticketType);
+
+//     // Manejar los dos casos de printerName
+//     let printerNameStr;
+
+//     if (typeof printerName === "string") {
+//       printerNameStr = printerName;
+//     } else if (typeof printerName === "object" && printerName.nombre) {
+//       printerNameStr = printerName.nombre;
+//     } else {
+//       throw new Error("Formato de printerName invalido");
+//     }
+
+//     // Validar que data no esté vacío
+//     if (!data || (Array.isArray(data) && data.length === 0)) {
+//       throw new Error("El campo data esta vacio");
+//     }
+
+//     // Obtener idioma del encabezado Accept-Language
+//     const locale = req.headers["accept-language"] || "es";
+//     i18n.setLocale(locale);
+//     const translations = loadedLocales[locale]?.[["precuenta"]] || {};
+
+//     // Impresión para Comanda (varios elementos)
+//     if (ticketType === "Comanda" && Array.isArray(data)) {
+//       let atLeastOnePrinted = false;
+//       let errors = [];
+
+//       for (const comanda of data) {
+//         console.log('DATA DEL ARREGLO COMANDA:', comanda);
+
+//         if (!comanda.impresora || !comanda.impresora.nombre) {
+//           const errorMsg = `Comanda ${comanda.numero_comanda} sin impresora definida`;
+//           console.warn(errorMsg);
+//           errors.push(errorMsg);
+//           continue;
+//         }
+
+//         // Validar tipo de conector (solo USB = 1)
+//         if (comanda.impresora.tipo_conector_id !== 1) {
+//           const errorMsg = `Comanda ${comanda.numero_comanda} omitida - Impresora ${comanda.impresora.nombre} no es USB (tipo_conector_id=${comanda.impresora.tipo_conector_id})`;
+//           console.warn(errorMsg);
+//           errors.push(errorMsg);
+//           continue;
+//         }
+
+//         try {
+//           const isConnected = await printerService.testPrinterConnection(comanda.impresora.nombre);
+
+//           if (!isConnected) {
+//             const errorMsg = `Impresora ${comanda.impresora.nombre} para comanda ${comanda.numero_comanda} no esta conectada`;
+//             console.warn(errorMsg);
+//             errors.push(errorMsg);
+//             continue;
+//           }
+
+//           printQueue.addJob(async () => {
+//             const printerInfo = await PrinterService.getNamePrinter(comanda.impresora.nombre);
+//             await printTicket(comanda, printerInfo, translations, ticketType);
+//           }, ticketType);
+
+//           atLeastOnePrinted = true;
+//           console.log(`Comanda ${comanda.numero_comanda} encolada para impresion en ${comanda.impresora.nombre}`);
+
+//         } catch (error) {
+//           const errorMsg = `Error al procesar comanda ${comanda.numero_comanda}: ${error.message}`;
+//           console.error(errorMsg);
+//           errors.push(errorMsg);
+//         }
+//       }
+
+//       if (!atLeastOnePrinted) {
+//         throw new Error(`Ninguna comanda pudo ser impresa. Errores: ${errors.join('; ')}`);
+//       }
+
+//       // Respuesta con advertencias si hubo errores parciales
+//       if (errors.length > 0) {
+//         res.send({
+//           success: true,
+//           message: 'Trabajo de impresion encolado con algunas advertencias',
+//           warnings: errors
+//         });
+//       } else {
+//         res.send({
+//           success: true,
+//           message: 'Todas las comandas encoladas para impresion correctamente'
+//         });
+//       }
+
+//       return; // Salir temprano para evitar ejecutar el resto del código
+
+//     } else {
+//       // Impresión para otros tipos (Precuenta, full, Cierre, etc.)
+//       let dataToPrint;
+//       if (Array.isArray(data)) {
+//         dataToPrint = data[0];
+//       } else if (typeof data === "object") {
+//         dataToPrint = data;
+//       } else {
+//         throw new Error("Formato de data invalido");
+//       }
+
+//       // Verificar conexión de la impresora para tickets no-Comanda
+//       const isConnected = await printerService.testPrinterConnection(printerNameStr);
+//       if (!isConnected) {
+//         return res.status(400).send({
+//           success: false,
+//           message: "La impresora no esta conectada o activa.",
+//         });
+//       }
+
+//       printQueue.addJob(async () => {
+//         const printerInfo = await PrinterService.getNamePrinter(printerNameStr);
+//         await printTicket(dataToPrint, printerInfo, translations, ticketType);
+//       }, ticketType);
+
+//       // Respuesta inmediata al cliente
+//       res.send({
+//         success: true,
+//         message: `Trabajo de impresion encolado: ${ticketType}`,
+//       });
+//     }
+
+//   } catch (error) {
+//     console.error("Error al encolar la impresion:", error);
+//     res.status(500).send({
+//       success: false,
+//       message: "Error al encolar la impresion",
+//       error: error.message,
+//     });
+//   }
+// });
+
+expressApp.get("/api/v1/impresoras/actualizar", async (req, res) => {
+  try {
+    const currentPrinters = await PrinterService.getAllConnectedPrinters();
+    lastPrinterState = currentPrinters;
+    broadcastPrinterState(currentPrinters);
+    res.send({ success: true, printers: currentPrinters });
+  } catch (err) {
+    res.status(500).send({ success: false, error: err.message });
+  }
+});
+
 expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
   try {
+    console.log("Iniciando impresión de prueba...");
     const { printerName } = req.body;
-    const printerInfo = await PrinterService.findPrinterByName(printerName);
+    console.log("Impresora recibida:", printerName);
 
-    if (!printerInfo) {
-      return res
-        .status(404)
-        .send({ success: false, message: "Impresora no encontrada" });
+    const isConnected = await new PrinterService().testPrinterConnection(
+      printerName
+    );
+    console.log("Estado de conexión:", isConnected);
+
+    if (!isConnected) {
+      console.log("Impresora no conectada");
+      return res.status(400).send({
+        success: false,
+        message: `La impresora "${printerName}" no está conectada o no responde.`,
+      });
     }
 
-    // Obtener el idioma del encabezado Accept-Language, o usa 'es' como predeterminado
     const locale = req.headers["accept-language"] || "es";
     i18n.setLocale(locale);
+    const translations = loadedLocales[locale]?.precuenta || {};
 
-    // Cargar traducciones localizadas para el ticket
-    const translations = loadedLocales[locale].precuenta;
-
-    // Datos de prueba para el ticket
     const testData = {
       local: { nombre: "Test", telefono: "000-000-0000" },
       venta: { mesa: "0" },
@@ -528,18 +699,26 @@ expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
       cuenta_venta: { subtotal: 1.0, total: 1.0 },
     };
 
-    // Pasar el ticketData y las traducciones localizadas a la función de impresión
+    console.log("Enviando a printTicket...");
     await printTicket(testData, printerName, translations);
+    console.log("Impresión completada");
+
     res.send({
       success: true,
-      message: "Impresión de prueba completada exitosamente",
+      message: `Impresión de prueba enviada a "${printerName}"`,
     });
   } catch (error) {
-    console.error("Error al imprimir el ticket de prueba:", error);
+    console.error("Error completo en /impresion/prueba:", {
+      message: error.message,
+      stack: error.stack,
+      rawError: error,
+    });
     res.status(500).send({
       success: false,
-      message: "Error al imprimir el ticket de prueba",
+      message:
+        "Error al imprimir. Verifica que la impresora esté instalada correctamente.",
       error: error.message,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 });

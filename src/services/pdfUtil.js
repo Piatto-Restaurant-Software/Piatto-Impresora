@@ -2,14 +2,19 @@ const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 const os = require("os");
-const { app } = require("electron");
 
 // Librería de impresión
 const { Printer, InMemory, Align, Drawer } = require("escpos-buffer");
 
-// Directorio para almacenar el archivo temporal
-const outputDir = app.getPath("userData");
-const outputPath = path.join(outputDir, "ticket_output.bin");
+// Variables para almacenar las rutas (se establecerán desde main.js)
+let outputDir;
+let outputPath;
+
+// Función para establecer las rutas desde el proceso principal
+function setAppDataPath(userDataPath) {
+    outputDir = userDataPath;
+    outputPath = path.join(outputDir, "ticket_output.bin");
+}
 
 /**
  * Imprime un ticket según el tipo y el sistema operativo
@@ -18,34 +23,28 @@ const outputPath = path.join(outputDir, "ticket_output.bin");
  * @param {Object} translations - Traducciones de textos
  * @param {String} ticketType - Tipo de ticket ("full", "Precuenta", "Comanda")
  */
-async function printTicket(
-  ticketData,
-  printerName,
-  translations,
-  ticketType
-  // ticketType = "Precuenta"
-) {
-
-  if (os.platform() === "win32") {
-    await printTicketWindows(ticketData, printerName, translations, ticketType);
-  } else {
-    await printTicketUnix(ticketData, printerName, translations, ticketType);
+async function printTicket(ticketData, printerName, translations, ticketType) {
+  try {
+    if (os.platform() === "win32") {
+      await printTicketWindows(ticketData, printerName, translations, ticketType);
+    } else {
+      await printTicketUnix(ticketData, printerName, translations, ticketType);
+    }
+  } catch (error) {
+    console.error("Error en printTicket:", error);
+    throw error; // Propaga el error para manejo superior
   }
 }
 
 /**
  * Imprime un ticket en sistemas Unix (macOS/Linux)
  */
-async function printTicketUnix(
-  ticketData,
-  printerName,
-  translations,
-  ticketType
-) {
-  try {
-    const connection = new InMemory();
-    const printer = await Printer.CONNECT("POS-80", connection);
+async function printTicketUnix(ticketData, printerName, translations, ticketType) {
+  const connection = new InMemory();
+  const printer = await Printer.CONNECT("POS-80", connection);
 
+  try {
+    // Diseñar el ticket según el tipo
     if (ticketType === "full") {
       await designFullTicket(printer, ticketData, translations);
     } else if (ticketType === "Precuenta") {
@@ -56,13 +55,23 @@ async function printTicketUnix(
       await designTestTicket(printer, ticketData, translations);
     }
 
-    fs.writeFileSync(outputPath, connection.buffer());
-    exec(`lp -d "${printerName.replace(/ /g, "_")}" "${outputPath}"`, (err) => {
-      if (err) console.error("Error al imprimir en Unix:", err);
-      else console.log("Impresión completada en Unix");
+    // Generar archivo temporal
+    const tempFile = path.join(os.tmpdir(), `ticket_${Date.now()}.prn`);
+    fs.writeFileSync(tempFile, connection.buffer());
+
+    // Comando de impresión genérico para Unix
+    exec(`lp -d "${printerName}" "${tempFile}"`, (error) => {
+      fs.unlinkSync(tempFile); // Limpiar archivo temporal
+      if (error) {
+        console.error("Error al imprimir en Unix:", error);
+        throw new Error(`No se pudo imprimir en ${printerName}`);
+      }
+      console.log(`Ticket enviado a ${printerName}`);
     });
+
   } catch (error) {
-    console.error("Error al imprimir el ticket en Unix:", error);
+    console.error("Error en printTicketUnix:", error);
+    throw error;
   }
 }
 
@@ -336,49 +345,52 @@ async function designTicketCierreWindows(printer, data, translations) {
 /**
  * Imprime un ticket en Windows
  */
-async function printTicketWindows(
-  ticketData,
-  printerName,
-  translations,
-  ticketType
-) {
+async function printTicketWindows(ticketData, printerName, translations, ticketType) {
+  const connection = new InMemory();
+  const printer = await Printer.CONNECT("POS-80", connection); 
+
+  console.log("Imprimiendo en Windows:", printerName);
+
   try {
-    const connection = new InMemory();
-    const printer = await Printer.CONNECT("POS-80", connection);
-
-    console.log('DATA RECIBIDA DESDE FUNCIÓN PRINCIPAL');
-    console.log(ticketData);
-
-    console.log('TICKET TIPE: ', ticketType)
-
-    if (ticketType === "full") {
-      await designFullTicket(printer, ticketData, translations);
-    } else if (ticketType === "Precuenta") {
-      await designPreBillWindows(printer, ticketData, translations);
-    } else if (ticketType === "Comanda") {
-      await designOrderSlipWindows(printer, ticketData, translations);
-    } else if (ticketType === "Cierre") {
-      await designTicketCierreWindows(printer, ticketData, translations);
-    } else {
-
-      await designTestTicket(printer, ticketData, translations);
+    // Diseñar el ticket según el tipo
+    switch (ticketType) {
+      case "full":
+        await designFullTicket(printer, ticketData, translations);
+        break;
+      case "Precuenta":
+        await designPreBillWindows(printer, ticketData, translations);
+        break;
+      case "Comanda":
+        await designOrderSlipWindows(printer, ticketData, translations);
+        break;
+      case "Cierre":
+        await designTicketCierreWindows(printer, ticketData, translations);
+        break;
+      default:
+        await designTestTicket(printer, ticketData, translations);
     }
 
-    fs.writeFileSync(outputPath, connection.buffer());
-    const formattedPrinterName = printerName.replace(/ /g, "_");
-    const printCommand = `cmd.exe /c "print /D:\\\\localhost\\"${printerName}" ${outputPath}"`;
-    exec(printCommand, (err, stdout, stderr) => {
-      if (err) {
-        console.error("Error al imprimir en Windows:", err);
-      } else {
-        console.log("Impresión completada en Windows:", stdout);
+    // Generar archivo temporal
+    const tempFile = path.join(os.tmpdir(), `ticket_${Date.now()}.prn`);
+    fs.writeFileSync(tempFile, connection.buffer());
+
+    // Comando de impresión genérico para Windows
+    const printCommand = `copy /B "${tempFile}" "\\\\127.0.0.1\\${printerName.replace(/ /g, "")}"`;
+    
+    exec(printCommand, (error) => {
+      fs.unlinkSync(tempFile); // Limpiar archivo temporal
+      if (error) {
+        console.error("Error al imprimir en Windows:", error);
+        throw new Error(`No se pudo imprimir en ${printerName}`);
       }
+      console.log(`Ticket enviado a ${printerName}`);
     });
+
   } catch (error) {
-    console.error("Error al imprimir el ticket en Windows:", error);
+    console.error("Error en printTicketWindows:", error);
+    throw error;
   }
 }
-
 /**
  * Diseño de precuenta para MACOS
  */
@@ -875,4 +887,5 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
 
 module.exports = {
   printTicket,
+  setAppDataPath
 };

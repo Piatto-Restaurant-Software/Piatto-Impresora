@@ -22,6 +22,9 @@
         <div class="col-auto logo-container">
           <img id="logo-image" alt="Logo" class="logo-image" />
         </div>
+        <div class="col-auto version-container">
+          <span class="badge bg-secondary">v1.0.0</span>
+        </div>
         <div class="col-auto language-container">
           <div class="dropdown">
             <button
@@ -73,6 +76,11 @@
       <div class="row content-container">
         <div class="col-12 text-start my-3">
           <h3 id="main-header"></h3>
+          <div class="col-12 text-end mb-3">
+            <button id="refresh-button" class="btn btn-outline-primary">
+              🔄 Actualizar impresoras
+            </button>
+          </div>
           <p id="header-description"></p>
         </div>
         <div class="col-12 printer-list">
@@ -84,6 +92,25 @@
     </div>
 
     <script>
+
+
+      document.getElementById("refresh-button").addEventListener("click", async () => {
+      try {
+        const response = await fetch(`http://${localIP}:3001/api/v1/impresoras/actualizar`);
+        const result = await response.json();
+        if (result.success) {
+          printers = result.printers;
+          updatePrinterUI(printers);
+        } else {
+          alert("No se pudo actualizar el estado de las impresoras.");
+        }
+      } catch (err) {
+        alert("Error al actualizar impresoras.");
+        console.error(err);
+      }
+    });
+
+
       document.getElementById(
         "dynamic-css"
       ).href = `${window.paths.assetsPath}/style.css`;
@@ -177,62 +204,60 @@
       }
 
       function updatePrinterUI(printers) {
-        const container = document.getElementById("printer-container");
-        container.innerHTML = "";
+  const container = document.getElementById("printer-container");
+  container.innerHTML = "";
 
-        printers.forEach((printer) => {
-          const printerDiv = document.createElement("div");
-          printerDiv.className = "col-sm-6 col-md-4 col-lg-4 mb-4";
+  if (!printers || printers.length === 0) {
+    container.innerHTML = `
+      <div class="col-12 text-center my-5">
+        <h4>${translations.interfaz.no_printers}</h4>
+        <p>${translations.interfaz.check_connection}</p>
+      </div>
+    `;
+    return;
+  }
 
-          let statusClass = "";
-          let statusText = "";
-          switch (printer.status) {
-            case "Desconectada":
-              statusClass = "badge-inactiva";
-              statusText = translations.interfaz.status.disconnected;
-              break;
-            case "Conectada":
-              statusClass = "badge-conectada";
-              statusText = translations.interfaz.status.connected;
-              break;
-            case "Inactiva":
-              statusClass = "badge-inactiva";
-              statusText = translations.interfaz.status.inactive;
-              break;
-            case "Imprimiendo":
-              statusClass = "badge-imprimiendo";
-              statusText = translations.interfaz.status.printing;
-              break;
-            case "Error":
-              statusClass = "badge-error";
-              statusText = translations.interfaz.status.error;
-              break;
-          }
+  printers.forEach((printer) => {
+    const printerDiv = document.createElement("div");
+    printerDiv.className = "col-sm-6 col-md-4 col-lg-4 mb-4";
 
-          printerDiv.innerHTML = `
-            <div class="card bg-dark text-white shadow">
-              <div class="card-body text-center">
-                <div class="badge-container">
-                  <span class="badge ${statusClass}"><span class="dot"></span> ${statusText}</span>
-                </div>
-                <img src="${
-                  window.paths.assetsPath
-                }/impresora.png" alt="Impresora" class="printer-image mb-3">
-                <h5 class="card-title mt-2">${(printer.description != undefined) ? printer.description: printer.name}</h5>
-                <p class="card-text">${
-                  printer.default
-                    ? translations.interfaz.buttons.default
-                    : translations.interfaz.buttons.non_default
-                }</p>
-                <button class="btn" onclick="testPrinter('${printer.name}')" 
+    console.log("Impresora:", printer);
 
-              >${translations.interfaz.buttons.test_print}</button>
-              </div>
-            </div>
-          `;
-          container.appendChild(printerDiv);
-        });
-      }
+    // Verificación más robusta del estado
+    let statusClass = "badge-inactiva";
+    let statusText = translations.interfaz.status.disconnected;
+    
+    if (printer.status === "Imprimiendo") {
+      statusClass = "badge-imprimiendo";
+      statusText = translations.interfaz.status.printing;
+    } else if (printer.status === "Conectada") {
+      statusClass = printer.default ? "badge-conectada-primary" : "badge-conectada";
+      statusText = translations.interfaz.status.connected;
+    } else if (printer.status === "Error") {
+      statusClass = "badge-error";
+      statusText = translations.interfaz.status.error;
+    }
+
+    printerDiv.innerHTML = `
+      <div class="card bg-dark text-white shadow printer-card">
+        <div class="card-body text-center">
+          <div class="badge-container">
+            <span class="badge ${statusClass}">
+              <span class="dot"></span> ${statusText}
+              ${printer.default ? ` (${translations.interfaz.buttons.default})` : ''}
+            </span>
+          </div>
+          <img src="${window.paths.assetsPath}/impresora.png" alt="Impresora" class="printer-image mb-3">
+          <h5 class="card-title mt-2">${ printer.name}</h5>
+          <button class="btn btn-test" onclick="testPrinter('${printer.name.replace(/'/g, "\\'")}')">
+            ${translations.interfaz.buttons.test_print}
+          </button>
+        </div>
+      </div>
+    `;
+    container.appendChild(printerDiv);
+  });
+}
 
       window.onload = () => {
         document.getElementById(
