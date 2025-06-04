@@ -23,12 +23,12 @@ function setAppDataPath(userDataPath) {
  * @param {Object} translations - Traducciones de textos
  * @param {String} ticketType - Tipo de ticket ("full", "Precuenta", "Comanda")
  */
-async function printTicket(ticketData, printerName, translations, ticketType) {
+async function printTicket(ticketData, printerName, translations, ticketType, abrirGavetaConfig) {
   try {
     if (os.platform() === "win32") {
-      await printTicketWindows(ticketData, printerName, translations, ticketType);
+      await printTicketWindows(ticketData, printerName, translations, ticketType, abrirGavetaConfig);
     } else {
-      await printTicketUnix(ticketData, printerName, translations, ticketType);
+      await printTicketUnix(ticketData, printerName, translations, ticketType, abrirGavetaConfig);
     }
   } catch (error) {
     console.error("Error en printTicket:", error);
@@ -46,7 +46,7 @@ async function printTicketUnix(ticketData, printerName, translations, ticketType
   try {
     // Diseñar el ticket según el tipo
     if (ticketType === "full") {
-      await designFullTicket(printer, ticketData, translations);
+      await designFullTicket(printer, connection, ticketData, translations);
     } else if (ticketType === "Precuenta") {
       await designPreBillUnix(printer, ticketData, translations);
     } else if (ticketType === "Comanda") {
@@ -345,7 +345,7 @@ async function designTicketCierreWindows(printer, data, translations) {
 /**
  * Imprime un ticket en Windows
  */
-async function printTicketWindows(ticketData, printerName, translations, ticketType) {
+async function printTicketWindows(ticketData, printerName, translations, ticketType, abrirGavetaConfig) {
   const connection = new InMemory();
   const printer = await Printer.CONNECT("POS-80", connection); 
 
@@ -355,7 +355,7 @@ async function printTicketWindows(ticketData, printerName, translations, ticketT
     // Diseñar el ticket según el tipo
     switch (ticketType) {
       case "full":
-        await designFullTicket(printer, ticketData, translations);
+        await designFullTicket(printer, connection, ticketData, translations,  abrirGavetaConfig);
         break;
       case "Precuenta":
         await designPreBillWindows(printer, ticketData, translations);
@@ -569,7 +569,7 @@ async function designPreBillWindows(printer, ticketData, translations) {
 /**
  * Diseño de ticket completo (full) para todos los sistemas operativos
  */
-async function designFullTicket(printer, ticketData, translations) {
+async function designFullTicket(printer, connection,  ticketData, translations, abrirGavetaConfig) {
   const SEPARATOR = "=".repeat(48);
   const LINE_SEPARATOR = "-".repeat(48);
 
@@ -590,6 +590,7 @@ async function designFullTicket(printer, ticketData, translations) {
     lines.push(currentLine.trim());
     return lines;
   }
+
 
   // Encabezado del ticket
   await printer.feed(1);
@@ -716,13 +717,29 @@ async function designFullTicket(printer, ticketData, translations) {
   await printer.write(`${translations.thank_you}\n`);
   await printer.write(`${translations.come_again}\n`);
 
-  // Alimentar y cortar papel
+   // Alimentar y cortar papel
   await printer.feed(6);
   await printer.cutter();
 
-  // Abrir gaveta si hay pagos en efectivo
-  if (ticketData.pagos.some((pago) => pago.tipo_pago.id === 1)) {
-    await printer.drawer(Drawer.First);
+  // Abrir gaveta si la configuración lo permite Y hay pagos en efectivo
+  const esPagoEfectivo =
+    ticketData.pagos &&
+    ticketData.pagos.some((pago) => pago.tipo_pago && pago.tipo_pago.id === 1);
+
+  console.log("Chequeando apertura de gaveta:"); // Para depuración
+  console.log("  abrirGavetaConfig:", abrirGavetaConfig); // Para depuración
+  console.log("  esPagoEfectivo:", esPagoEfectivo); // Para depuración
+
+   if (abrirGavetaConfig && esPagoEfectivo) {
+    console.log("Intentando abrir gaveta usando connection.write()...");
+    const drawerCommand = Buffer.from([0x1b, 0x70, 0x00, 0x32, 0x32]); // Pin 2, 100ms ON, 100ms OFF
+
+    if (connection && typeof connection.write === 'function') {
+      connection.write(drawerCommand); 
+      console.log("Comando de apertura de gaveta enviado al buffer (via connection.write).");
+    } else {
+      console.error("ERROR: connection.write() no está disponible. No se puede abrir la gaveta con comando crudo.");
+    }
   }
 }
 

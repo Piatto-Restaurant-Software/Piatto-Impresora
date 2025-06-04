@@ -388,6 +388,13 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
 
     console.log("DATA RECIBIDA DESDE POST: ", data);
     console.log("TIPO DE IMPRESION: ", ticketType);
+    console.log("NOMBRE DE IMPRESORA: ", printerName);
+
+    // Obtener la configuración para abrir gaveta
+    const abrirGavetaConfig =
+      typeof printerName === "object" && printerName !== null
+        ? printerName.abrir_gaveta
+        : false; // Por defecto false si no es objeto o no existe la propiedad
 
     // Manejar printerName (string u objeto)
     const printerNameStr =
@@ -421,7 +428,8 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
       printerNameStr,
       translations,
       ticketType,
-      res
+      res,
+      abrirGavetaConfig
     );
   } catch (error) {
     console.error("Error al encolar la impresión:", error);
@@ -477,7 +485,8 @@ async function processSinglePrint(
   printerName,
   translations,
   ticketType,
-  res
+  res,
+  abrirGavetaConfig
 ) {
   const isConnected = await new PrinterService().testPrinterConnection(
     printerName
@@ -490,7 +499,7 @@ async function processSinglePrint(
   }
 
   printQueue.addJob(async () => {
-    await printTicket(data, printerName, translations, ticketType);
+    await printTicket(data, printerName, translations, ticketType, abrirGavetaConfig);
   }, ticketType);
 
   res.send({
