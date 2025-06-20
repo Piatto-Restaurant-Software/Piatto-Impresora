@@ -803,6 +803,114 @@ async function designOrderSlipUnix(printer, ticketData, translations) {
 /**
  * Diseño de comanda para Windows
  */
+// async function designOrderSlipWindows(printer, ticketData, translations) {
+
+//   console.log('DATA COMANDA: ', ticketData);
+
+//   const SEPARATOR = "=".repeat(48);
+//   const LINE_SEPARATOR = "-".repeat(48);
+//   const STAR_SEPARATOR = "*".repeat(48);
+
+//   // Helper para manejar texto largo
+//   function splitText(text, length) {
+//     const words = text.split(" ");
+//     const lines = [];
+//     let currentLine = "";
+
+//     for (const word of words) {
+//       if ((currentLine + word).length > length) {
+//         lines.push(currentLine.trim());
+//         currentLine = word + " ";
+//       } else {
+//         currentLine += word + " ";
+//       }
+//     }
+//     lines.push(currentLine.trim());
+//     return lines;
+//   }
+
+//   // Encabezado de la comanda
+//   await printer.feed(1);
+//   await printer.setAlignment(Align.Center);
+//   await printer.write(`${STAR_SEPARATOR}\n`);
+//   await printer.write("\x1B\x21\x30"); // Texto grande/negrita
+//   await printer.write(`${translations.order_slip}\n`);
+//   await printer.write("\x1B\x21\x00"); // Restablecer texto normal
+//   await printer.write(`${SEPARATOR}\n`);
+
+//   // Información del área y la mesa
+//   await printer.setAlignment(Align.Left);
+//   await printer.write("\x1B\x21\x30");
+//   await printer.write(`N: ${ticketData.numero_comanda} \n`);
+//   await printer.write("\x1B\x21\x00");
+//   await printer.write(`${translations.area}: ${ticketData.area}\n`);
+//   await printer.write(`${ticketData.mesa || translations.unassigned}\n`);
+//   await printer.write(`Cantidad personas: ${ticketData.cantidad_personas || translations.unassigned}\n`);
+//   await printer.write(`${'Mesero'}: ${ticketData.mesero}\n`);
+//   await printer.write(`${'Fecha'}: ${ticketData.fecha}\n`);
+//   await printer.write(`${SEPARATOR}\n`);
+
+//   // Encabezado de productos
+//   await printer.write(`${translations.qty.padEnd(8)}${translations.product}\n`);
+//   await printer.write(`${LINE_SEPARATOR}\n`);
+
+//   // Detalle de pedidos
+//   for (const pedido of ticketData.pedidos) {
+//     const cantidad = `${pedido.cantidad}`.padEnd(8);
+//     let presentacion = pedido.presentacion || pedido.producto;
+
+//     // NUEVO: Se verifica si el pedido es para llevar
+//       if (pedido.paraLlevar) {
+//         // Se concatena el texto "(Para Llevar)". 
+//         // Opcional: podrías usar una traducción como `( ${translations.for_takeaway} )`
+//         presentacion += " *(Para Llevar)*";
+//       }
+
+
+//     const lineasProducto = splitText(presentacion, 45);
+
+//     // Primera línea del producto con cantidad
+//     await printer.write(`${cantidad}${lineasProducto[0]}\n`);
+
+//     // Líneas adicionales del nombre del producto
+//     for (let i = 1; i < lineasProducto.length; i++) {
+//       await printer.write(`        ${lineasProducto[i]}\n`);
+//     }
+
+//     // Modificadores
+//     if (pedido.modificadores && pedido.modificadores.length > 0) {
+//       for (const modificador of pedido.modificadores) {
+//         const modCantidad = `${modificador.cantidad}x `.padStart(15);
+//         const modNombre = splitText(modificador.nombre, 40);
+
+//         // Primera línea del modificador
+//         await printer.write(` ${modCantidad}${modNombre[0].padEnd(5)}*\n`);
+
+//         // Líneas adicionales del modificador
+//         for (let i = 1; i < modNombre.length; i++) {
+//           await printer.write(`      ${modNombre[i]}\n`);
+//         }
+//       }
+//     }
+
+//     // Nota del pedido
+//     if (pedido.notaPedido) {
+//       const lineasNota = splitText(pedido.notaPedido, 40);
+//       await printer.write(`  - ${translations.note}:\n`);
+//       for (const linea of lineasNota) {
+//         await printer.write(`    ${linea}\n`);
+//       }
+//     }
+//   }
+
+//   // Separador final
+//   await printer.write(`${STAR_SEPARATOR}\n`);
+
+//   // Alimentar y cortar papel
+//   await printer.feed(6);
+//   await printer.cutter();
+// }
+
 async function designOrderSlipWindows(printer, ticketData, translations) {
 
   console.log('DATA COMANDA: ', ticketData);
@@ -811,7 +919,6 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
   const LINE_SEPARATOR = "-".repeat(48);
   const STAR_SEPARATOR = "*".repeat(48);
 
-  // Helper para manejar texto largo
   function splitText(text, length) {
     const words = text.split(" ");
     const lines = [];
@@ -829,16 +936,14 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
     return lines;
   }
 
-  // Encabezado de la comanda
   await printer.feed(1);
   await printer.setAlignment(Align.Center);
   await printer.write(`${STAR_SEPARATOR}\n`);
-  await printer.write("\x1B\x21\x30"); // Texto grande/negrita
+  await printer.write("\x1B\x21\x30"); 
   await printer.write(`${translations.order_slip}\n`);
-  await printer.write("\x1B\x21\x00"); // Restablecer texto normal
+  await printer.write("\x1B\x21\x00");
   await printer.write(`${SEPARATOR}\n`);
 
-  // Información del área y la mesa
   await printer.setAlignment(Align.Left);
   await printer.write("\x1B\x21\x30");
   await printer.write(`N: ${ticketData.numero_comanda} \n`);
@@ -850,54 +955,63 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
   await printer.write(`${'Fecha'}: ${ticketData.fecha}\n`);
   await printer.write(`${SEPARATOR}\n`);
 
-  // Encabezado de productos
   await printer.write(`${translations.qty.padEnd(8)}${translations.product}\n`);
   await printer.write(`${LINE_SEPARATOR}\n`);
 
-  // Detalle de pedidos
-  for (const pedido of ticketData.pedidos) {
-    const cantidad = `${pedido.cantidad}`.padEnd(8);
-    const presentacion = pedido.presentacion || pedido.producto;
-    const lineasProducto = splitText(presentacion, 45);
+ 
+for (const pedido of ticketData.pedidos) {
+  const cantidad = `${pedido.cantidad}`.padEnd(8);
+  const indentacion = " ".repeat(8); 
 
-    // Primera línea del producto con cantidad
-    await printer.write(`${cantidad}${lineasProducto[0]}\n`);
+  const lineasProducto = splitText(pedido.presentacion || pedido.producto, 45);
 
-    // Líneas adicionales del nombre del producto
-    for (let i = 1; i < lineasProducto.length; i++) {
-      await printer.write(`        ${lineasProducto[i]}\n`);
+  for (let i = 0; i < lineasProducto.length; i++) {
+    const linea = lineasProducto[i];
+    const esPrimeraLinea = (i === 0);
+    const esUltimaLinea = (i === lineasProducto.length - 1);
+
+    if (esPrimeraLinea) {
+      await printer.write(cantidad);
+    } else {
+      await printer.write(indentacion);
     }
 
-    // Modificadores
-    if (pedido.modificadores && pedido.modificadores.length > 0) {
-      for (const modificador of pedido.modificadores) {
-        const modCantidad = `${modificador.cantidad}x `.padStart(15);
-        const modNombre = splitText(modificador.nombre, 40);
+    await printer.write(linea);
 
-        // Primera línea del modificador
-        await printer.write(` ${modCantidad}${modNombre[0].padEnd(5)}*\n`);
-
-        // Líneas adicionales del modificador
-        for (let i = 1; i < modNombre.length; i++) {
-          await printer.write(`      ${modNombre[i]}\n`);
-        }
-      }
+    if (esUltimaLinea && pedido.paraLlevar) {
+      await printer.write(" ");
+      await printer.write("\x1B\x21\x08");
+      await printer.write("(Para Llevar)");
+      await printer.write("\x1B\x21\x00");
     }
 
-    // Nota del pedido
-    if (pedido.notaPedido) {
-      const lineasNota = splitText(pedido.notaPedido, 40);
-      await printer.write(`  - ${translations.note}:\n`);
-      for (const linea of lineasNota) {
-        await printer.write(`    ${linea}\n`);
+    await printer.write("\n");
+  }
+
+  if (pedido.modificadores && pedido.modificadores.length > 0) {
+    for (const modificador of pedido.modificadores) {
+      const modNombre = splitText(`* ${modificador.cantidad}x ${modificador.nombre}`, 40);
+
+      for (const lineaMod of modNombre) {
+        await printer.write(`${indentacion}${lineaMod}\n`);
       }
     }
   }
 
-  // Separador final
+  if (pedido.notaPedido) {
+    const lineasNota = splitText(pedido.notaPedido, 40);
+    await printer.write(`${indentacion}- Nota:\n`);
+    for (const linea of lineasNota) {
+      await printer.write(`${indentacion}  ${linea}\n`);
+    }
+  }
+
+ 
+  await printer.write('\n');
+}
+
   await printer.write(`${STAR_SEPARATOR}\n`);
 
-  // Alimentar y cortar papel
   await printer.feed(6);
   await printer.cutter();
 }
