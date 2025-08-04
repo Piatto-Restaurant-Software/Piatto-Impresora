@@ -395,6 +395,9 @@ async function printTicketWindows(
       case "Cierre":
         await designTicketCierreWindows(printer, ticketData, translations);
         break;
+      case "AnulacionPedido":
+        await cancelledOrderWindows(printer, ticketData, translations);
+        break;
       default:
         await designTestTicket(printer, ticketData, translations);
     }
@@ -927,7 +930,7 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
 
     const lineasProducto = splitText(
       pedido.presentacion || pedido.producto,
-      45
+      40
     );
 
     for (let i = 0; i < lineasProducto.length; i++) {
@@ -975,6 +978,108 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
     }
 
     await printer.write("\n");
+  }
+
+  await printer.write(`${STAR_SEPARATOR}\n`);
+
+  await printer.feed(6);
+  await printer.cutter();
+}
+
+async function cancelledOrderWindows(printer, ticketData, translations) {
+  console.log("PEDIDO ELIMINADO: ", ticketData);
+
+  const SEPARATOR = "=".repeat(48);
+  const LINE_SEPARATOR = "-".repeat(48);
+  const STAR_SEPARATOR = "*".repeat(48);
+
+  function splitText(text, length) {
+    const words = text.split(" ");
+    const lines = [];
+    let currentLine = "";
+
+    for (const word of words) {
+      if ((currentLine + word).length > length) {
+        lines.push(currentLine.trim());
+        currentLine = word + " ";
+      } else {
+        currentLine += word + " ";
+      }
+    }
+    lines.push(currentLine.trim());
+    return lines;
+  }
+
+  await printer.feed(1);
+  await printer.setAlignment(Align.Center);
+  await printer.write(`${STAR_SEPARATOR}\n`);
+  await printer.write("\x1B\x21\x30");
+  await printer.write(`${translations.cancelled_order}\n`);
+  await printer.write("\x1B\x21\x00");
+  await printer.write(`${SEPARATOR}\n`);
+
+  await printer.setAlignment(Align.Left);
+  await printer.write("\x1B\x21\x00");
+  await printer.write(`${translations.area}: ${ticketData.area}\n`);
+  await printer.write(
+    `${translations.room}: ${ticketData.salon},  ${translations.table}: ${ticketData.mesa}\n`
+  );
+  await printer.write(`${"Anulado por"}: ${ticketData.anulado_por}\n`);
+  await printer.write(`${"Comandado por"}: ${ticketData.comandado_por}\n`);
+  await printer.write(`${"Fecha"}: ${ticketData.fecha}\n`);
+  await printer.write(`${SEPARATOR}\n`);
+
+  await printer.write(`${translations.qty.padEnd(8)}${translations.product}\n`);
+  await printer.write(`${LINE_SEPARATOR}\n`);
+
+  const pedido = ticketData.pedido;
+  const cantidad = `${pedido.cantidad}`.padEnd(8);
+  const indentacion = " ".repeat(8);
+
+  const lineasProducto = splitText(pedido.presentacion || pedido.producto, 40);
+
+  for (let i = 0; i < lineasProducto.length; i++) {
+    const linea = lineasProducto[i];
+    const esPrimeraLinea = i === 0;
+    const esUltimaLinea = i === lineasProducto.length - 1;
+
+    if (esPrimeraLinea) {
+      await printer.write(cantidad);
+    } else {
+      await printer.write(indentacion);
+    }
+
+    await printer.write(linea);
+
+    if (esUltimaLinea && pedido.paraLlevar) {
+      await printer.write(" ");
+      await printer.write("\x1B\x21\x08");
+      await printer.write("(Para Llevar)");
+      await printer.write("\x1B\x21\x00");
+    }
+
+    await printer.write("\n");
+  }
+
+  if (pedido.modificadores && pedido.modificadores.length > 0) {
+    for (const modificador of pedido.modificadores) {
+      const modNombre = splitText(
+        `* ${modificador.cantidad}x ${modificador.nombre}`,
+        40
+      );
+
+      for (const lineaMod of modNombre) {
+        await printer.write(`${indentacion}${lineaMod}\n`);
+      }
+    }
+  }
+
+  if (pedido.notaPedido) {
+    const lineasNota = splitText(pedido.notaPedido, 40);
+    await printer.write(`${indentacion}- Nota:\n`);
+    for (const linea of lineasNota) {
+      await printer.write(`${indentacion}  ${linea}\n`);
+    }
   }
 
   await printer.write(`${STAR_SEPARATOR}\n`);
