@@ -12,8 +12,8 @@ let outputPath;
 
 // Función para establecer las rutas desde el proceso principal
 function setAppDataPath(userDataPath) {
-    outputDir = userDataPath;
-    outputPath = path.join(outputDir, "ticket_output.bin");
+  outputDir = userDataPath;
+  outputPath = path.join(outputDir, "ticket_output.bin");
 }
 
 /**
@@ -23,12 +23,30 @@ function setAppDataPath(userDataPath) {
  * @param {Object} translations - Traducciones de textos
  * @param {String} ticketType - Tipo de ticket ("full", "Precuenta", "Comanda")
  */
-async function printTicket(ticketData, printerName, translations, ticketType, abrirGavetaConfig) {
+async function printTicket(
+  ticketData,
+  printerName,
+  translations,
+  ticketType,
+  abrirGavetaConfig
+) {
   try {
     if (os.platform() === "win32") {
-      await printTicketWindows(ticketData, printerName, translations, ticketType, abrirGavetaConfig);
+      await printTicketWindows(
+        ticketData,
+        printerName,
+        translations,
+        ticketType,
+        abrirGavetaConfig
+      );
     } else {
-      await printTicketUnix(ticketData, printerName, translations, ticketType, abrirGavetaConfig);
+      await printTicketUnix(
+        ticketData,
+        printerName,
+        translations,
+        ticketType,
+        abrirGavetaConfig
+      );
     }
   } catch (error) {
     console.error("Error en printTicket:", error);
@@ -39,7 +57,12 @@ async function printTicket(ticketData, printerName, translations, ticketType, ab
 /**
  * Imprime un ticket en sistemas Unix (macOS/Linux)
  */
-async function printTicketUnix(ticketData, printerName, translations, ticketType) {
+async function printTicketUnix(
+  ticketData,
+  printerName,
+  translations,
+  ticketType
+) {
   const connection = new InMemory();
   const printer = await Printer.CONNECT("POS-80", connection);
 
@@ -68,7 +91,6 @@ async function printTicketUnix(ticketData, printerName, translations, ticketType
       }
       console.log(`Ticket enviado a ${printerName}`);
     });
-
   } catch (error) {
     console.error("Error en printTicketUnix:", error);
     throw error;
@@ -77,7 +99,6 @@ async function printTicketUnix(ticketData, printerName, translations, ticketType
 
 /** Imprime test de prueba como ticket */
 async function designTestTicket(printer, testData, translations) {
-
   // Encabezado del ticket
   await printer.feed(1);
   await printer.setAlignment(Align.Center);
@@ -201,7 +222,6 @@ async function designTicketCierreWindows(printer, data, translations) {
   // Totales en columnas
   async function printRow(label, value) {
     await printer.write(`${label.padEnd(30)}${value.padStart(18)}\n`);
-    
   }
   await printer.setAlignment(Align.Center);
   await printer.write("RESUMEN DE CAJA\n");
@@ -217,19 +237,22 @@ async function designTicketCierreWindows(printer, data, translations) {
       const total = (metodo.total || "0").toString();
       printRow(`${nombre}:`, total);
     }
-
   }
-
-
 
   await printRow("Total en Caja (efectivo):", data.total_caja_efectivo);
   await printRow("Total en Caja (general):", data.total_caja_general);
   await printRow("Venta credito general:", data.venta_credito_general);
-  await printRow("Venta credito intermediario:", data.total_credito_intermediarios);
-  
+  await printRow(
+    "Venta credito intermediario:",
+    data.total_credito_intermediarios
+  );
+
   const ventaCreditoIntermediarios = data?.venta_credito_intermediarios;
 
-  if (Array.isArray(ventaCreditoIntermediarios) && ventaCreditoIntermediarios.length > 0) {
+  if (
+    Array.isArray(ventaCreditoIntermediarios) &&
+    ventaCreditoIntermediarios.length > 0
+  ) {
     await printer.write(`${LINE_SEPARATOR}\n`);
 
     for (const venta of ventaCreditoIntermediarios) {
@@ -244,13 +267,11 @@ async function designTicketCierreWindows(printer, data, translations) {
     await printer.write(`${LINE_SEPARATOR}\n`);
   }
 
-  
-
   await printer.write(`${SEPARATOR}\n`);
 
   // Ingresos y egresos
   await printer.setAlignment(Align.Center);
-    await printer.write("INGRESOS Y EGRESOS EN CAJA\n");
+  await printer.write("INGRESOS Y EGRESOS EN CAJA\n");
   await printer.write(`${SEPARATOR}\n`);
 
   await printRow("Ingresos:", data.total_ingresos);
@@ -264,7 +285,6 @@ async function designTicketCierreWindows(printer, data, translations) {
       const total = (propina.total || "0").toString();
       printRow(`${nombre}:`, total);
     }
-
   }
 
   const creditosCobradosArr = data?.totales_creditos_cobrados;
@@ -275,14 +295,13 @@ async function designTicketCierreWindows(printer, data, translations) {
       const total = (credito.total || "0").toString();
       printRow(`${nombre}:`, total);
     }
-
   }
 
   await printer.write(`${SEPARATOR}\n`);
 
   // Descuentos
   await printer.setAlignment(Align.Center);
-    await printer.write("DESCUENTOS APLICADOS\n");
+  await printer.write("DESCUENTOS APLICADOS\n");
   await printer.write(`${SEPARATOR}\n`);
 
   await printRow("Descuentos a pedidos:", data.total_descuento_pedido);
@@ -298,9 +317,7 @@ async function designTicketCierreWindows(printer, data, translations) {
 
     // Encabezado de la tabla
     await printer.setAlignment(Align.Left);
-    await printer.write(
-      `Cant  Producto              P.Unit    Importe\n`
-    );
+    await printer.write(`Cant  Producto              P.Unit    Importe\n`);
     await printer.write(`${LINE_SEPARATOR}\n`);
 
     // Detalles de pedidos
@@ -311,7 +328,11 @@ async function designTicketCierreWindows(printer, data, translations) {
       const lineasProducto = splitText(pedido.nombre || "-", 20);
 
       // Primera línea del producto
-      await printer.write(`${cantidad}${lineasProducto[0].padEnd(20)}${precioUnitario}${precioTotal}\n`);
+      await printer.write(
+        `${cantidad}${lineasProducto[0].padEnd(
+          20
+        )}${precioUnitario}${precioTotal}\n`
+      );
 
       // Líneas adicionales del producto
       for (let i = 1; i < lineasProducto.length; i++) {
@@ -327,27 +348,29 @@ async function designTicketCierreWindows(printer, data, translations) {
   await printer.setAlignment(Align.Center);
   await printer.write("ACTIVIDAD\n");
   await printer.write(`${SEPARATOR}\n`);
-  
 
   await printRow("Subtotales:", data.subtotales);
   await printRow("Impuestos:", data.total_impuestos);
   await printRow("Totales:", data.totales);
   await printer.write(`${SEPARATOR}\n`);
 
-
   // Alimentar papel y cortar
   await printer.feed(6);
   await printer.cutter();
 }
 
-
-
 /**
  * Imprime un ticket en Windows
  */
-async function printTicketWindows(ticketData, printerName, translations, ticketType, abrirGavetaConfig) {
+async function printTicketWindows(
+  ticketData,
+  printerName,
+  translations,
+  ticketType,
+  abrirGavetaConfig
+) {
   const connection = new InMemory();
-  const printer = await Printer.CONNECT("POS-80", connection); 
+  const printer = await Printer.CONNECT("POS-80", connection);
 
   console.log("Imprimiendo en Windows:", ticketData);
 
@@ -355,7 +378,13 @@ async function printTicketWindows(ticketData, printerName, translations, ticketT
     // Diseñar el ticket según el tipo
     switch (ticketType) {
       case "full":
-        await designFullTicket(printer, connection, ticketData, translations,  abrirGavetaConfig);
+        await designFullTicket(
+          printer,
+          connection,
+          ticketData,
+          translations,
+          abrirGavetaConfig
+        );
         break;
       case "Precuenta":
         await designPreBillWindows(printer, ticketData, translations);
@@ -375,8 +404,11 @@ async function printTicketWindows(ticketData, printerName, translations, ticketT
     fs.writeFileSync(tempFile, connection.buffer());
 
     // Comando de impresión genérico para Windows
-    const printCommand = `copy /B "${tempFile}" "\\\\127.0.0.1\\${printerName.replace(/ /g, "")}"`;
-    
+    const printCommand = `copy /B "${tempFile}" "\\\\127.0.0.1\\${printerName.replace(
+      / /g,
+      ""
+    )}"`;
+
     exec(printCommand, (error) => {
       fs.unlinkSync(tempFile); // Limpiar archivo temporal
       if (error) {
@@ -385,7 +417,6 @@ async function printTicketWindows(ticketData, printerName, translations, ticketT
       }
       console.log(`Ticket enviado a ${printerName}`);
     });
-
   } catch (error) {
     console.error("Error en printTicketWindows:", error);
     throw error;
@@ -457,9 +488,7 @@ async function designPreBillUnix(printer, ticketData, translations) {
   await printer.write("-".repeat(48) + "\n"); // Separador de subtotal
   await printer.setAlignment(Align.Right);
   await printer.write(
-    `${translations.subtotal}: $${ticketData.subtotal.toFixed(
-      2
-    )}\n`
+    `${translations.subtotal}: $${ticketData.subtotal.toFixed(2)}\n`
   );
   await printer.write(
     `${translations.total}: $${ticketData.total.toFixed(2)}\n`
@@ -480,7 +509,7 @@ async function designPreBillUnix(printer, ticketData, translations) {
 async function designPreBillWindows(printer, ticketData, translations) {
   const SEPARATOR = "=".repeat(48);
   const LINE_SEPARATOR = "-".repeat(48);
-  
+
   console.log("Diseñando precuenta para Windows...");
 
   // Helper para dividir texto
@@ -524,15 +553,19 @@ async function designPreBillWindows(printer, ticketData, translations) {
   // Detalles de pedidos
   for (const pedido of ticketData.pedidos) {
     const cantidad = pedido.cantidad.toString().padEnd(5);
-    const precioUnitario = `${ticketData.simbolo_moneda}${pedido.precio_unitario}`.padStart(8);
-    const precioTotal = `${ticketData.simbolo_moneda}${pedido.precio_total}`.padStart(8);
+    const precioUnitario =
+      `${ticketData.simbolo_moneda}${pedido.precio_unitario}`.padStart(8);
+    const precioTotal =
+      `${ticketData.simbolo_moneda}${pedido.precio_total}`.padStart(8);
     const producto = pedido.producto_presentacion.nombre;
 
     const lineasProducto = splitText(producto, 26);
 
     // Primera línea con cantidad y precios
     await printer.write(
-      `${cantidad}${lineasProducto[0].padEnd(26)}${precioUnitario}${precioTotal}\n`
+      `${cantidad}${lineasProducto[0].padEnd(
+        26
+      )}${precioUnitario}${precioTotal}\n`
     );
 
     // Líneas adicionales del producto
@@ -544,8 +577,12 @@ async function designPreBillWindows(printer, ticketData, translations) {
   // Subtotales y totales
   await printer.write(`${LINE_SEPARATOR}\n`);
   await printer.setAlignment(Align.Right);
-  await printer.write(`${translations.subtotal}: ${ticketData.simbolo_moneda}${ticketData.subtotal}\n`);
-  await printer.write(`Descuento: ${ticketData.simbolo_moneda}${ticketData.descuento}\n`);
+  await printer.write(
+    `${translations.subtotal}: ${ticketData.simbolo_moneda}${ticketData.subtotal}\n`
+  );
+  await printer.write(
+    `Descuento: ${ticketData.simbolo_moneda}${ticketData.descuento}\n`
+  );
 
   if (ticketData.impuestos.length > 0) {
     for (const impuesto of ticketData.impuestos) {
@@ -554,9 +591,13 @@ async function designPreBillWindows(printer, ticketData, translations) {
       );
     }
   }
-  await printer.write(`${translations.tip}: ${ticketData.simbolo_moneda}${ticketData.propina_predeterminada}\n`);
+  await printer.write(
+    `${translations.tip}: ${ticketData.simbolo_moneda}${ticketData.propina_predeterminada}\n`
+  );
   await printer.write("\x1B\x21\x30"); // Texto grande
-  await printer.write(`${translations.total}: ${ticketData.simbolo_moneda}${ticketData.total}\n`);
+  await printer.write(
+    `${translations.total}: ${ticketData.simbolo_moneda}${ticketData.total}\n`
+  );
   await printer.write("\x1B\x21\x00"); // Texto normal
 
   // Pie del ticket
@@ -573,7 +614,13 @@ async function designPreBillWindows(printer, ticketData, translations) {
 /**
  * Diseño de ticket completo (full) para todos los sistemas operativos
  */
-async function designFullTicket(printer, connection,  ticketData, translations, abrirGavetaConfig) {
+async function designFullTicket(
+  printer,
+  connection,
+  ticketData,
+  translations,
+  abrirGavetaConfig
+) {
   const SEPARATOR = "=".repeat(48);
   const LINE_SEPARATOR = "-".repeat(48);
 
@@ -594,7 +641,6 @@ async function designFullTicket(printer, connection,  ticketData, translations, 
     lines.push(currentLine.trim());
     return lines;
   }
-
 
   // Encabezado del ticket
   await printer.feed(1);
@@ -624,22 +670,28 @@ async function designFullTicket(printer, connection,  ticketData, translations, 
   await printer.write(
     `${translations.seller}: ${ticketData.usuario.nombre} ${ticketData.usuario.apellidos}\n`
   );
-  await printer.write(
-    `${translations.date}: ${ticketData.venta.fin_venta}\n`
-  );
+  await printer.write(`${translations.date}: ${ticketData.venta.fin_venta}\n`);
   await printer.write(`${SEPARATOR}\n`);
 
   // Encabezado de productos
   await printer.write(
-    `${translations.qty.padEnd(6)}${translations.product.padEnd(22)}${translations.unit_price.padStart(10)}${translations.product_total.padStart(10)}\n`
+    `${translations.qty.padEnd(6)}${translations.product.padEnd(
+      22
+    )}${translations.unit_price.padStart(
+      10
+    )}${translations.product_total.padStart(10)}\n`
   );
   await printer.write(`${LINE_SEPARATOR}\n`);
 
   // Lista de productos
   for (const pedido of ticketData.pedidos) {
     const cantidad = pedido.cantidad.toString().padEnd(6);
-    const precioUnitario = `${ticketData.simbolo_moneda}${pedido.precio_unitario.toFixed(2)}`.padStart(10);
-    const precioTotal = `${ticketData.simbolo_moneda}${pedido.precio_total.toFixed(2)}`.padStart(10);
+    const precioUnitario = `${
+      ticketData.simbolo_moneda
+    }${pedido.precio_unitario.toFixed(2)}`.padStart(10);
+    const precioTotal = `${
+      ticketData.simbolo_moneda
+    }${pedido.precio_total.toFixed(2)}`.padStart(10);
     const producto = pedido.producto_presentacion.nombre;
 
     // Se divide el nombre del producto si es muy largo
@@ -647,7 +699,9 @@ async function designFullTicket(printer, connection,  ticketData, translations, 
 
     // Primera línea con cantidad, producto, precios
     await printer.write(
-      `${cantidad}${lineasProducto[0].padEnd(22)}${precioUnitario}${precioTotal}\n`
+      `${cantidad}${lineasProducto[0].padEnd(
+        22
+      )}${precioUnitario}${precioTotal}\n`
     );
 
     // Si el nombre del producto es largo, se imprimen las siguientes líneas debajo
@@ -661,9 +715,10 @@ async function designFullTicket(printer, connection,  ticketData, translations, 
   // Totales
   await printer.setAlignment(Align.Right);
   await printer.write(
-    `${translations.subtotal}: ${ticketData.simbolo_moneda}${ticketData.cuenta_venta.subtotal.toFixed(2)}\n`
+    `${translations.subtotal}: ${
+      ticketData.simbolo_moneda
+    }${ticketData.cuenta_venta.subtotal.toFixed(2)}\n`
   );
-
 
   const descuento = parseFloat(ticketData.cuenta_venta.descuento) || 0;
 
@@ -672,7 +727,7 @@ async function designFullTicket(printer, connection,  ticketData, translations, 
       `${translations.discount}: ${ticketData.simbolo_moneda}${descuento}\n`
     );
   }
-  
+
   // Mostrar los impuestos detalladamente
   if (ticketData.cuenta_venta.impuestos.length > 0) {
     for (const impuesto of ticketData.cuenta_venta.impuestos) {
@@ -682,14 +737,18 @@ async function designFullTicket(printer, connection,  ticketData, translations, 
     }
   }
   await printer.write(
-    `${translations.tip}: ${ticketData.simbolo_moneda}${ticketData.cuenta_venta.propina_predeterminada.toFixed(2)}\n`
+    `${translations.tip}: ${
+      ticketData.simbolo_moneda
+    }${ticketData.cuenta_venta.propina_predeterminada.toFixed(2)}\n`
   );
   // await printer.write(
   //   `Impuesto: ${ticketData.simbolo_moneda}${ticketData.cuenta_venta.propina_predeterminada.toFixed(2)}\n`
   // );
   await printer.write("\x1B\x21\x30"); // Texto grande
   await printer.write(
-    `${translations.total}: ${ticketData.simbolo_moneda}${ticketData.cuenta_venta.total.toFixed(2)}\n`
+    `${translations.total}: ${
+      ticketData.simbolo_moneda
+    }${ticketData.cuenta_venta.total.toFixed(2)}\n`
   );
   await printer.write("\x1B\x21\x00"); // Texto normal
 
@@ -699,8 +758,9 @@ async function designFullTicket(printer, connection,  ticketData, translations, 
     await printer.write(`${translations.payments}\n`);
     for (const pago of ticketData.pagos) {
       await printer.write(
-        `${pago.tipo_pago.nombre}: ${ticketData.simbolo_moneda}${pago.monto.toFixed(2)}${pago.tarjeta ? ` (${pago.tarjeta})` : ""
-        }\n`
+        `${pago.tipo_pago.nombre}: ${
+          ticketData.simbolo_moneda
+        }${pago.monto.toFixed(2)}${pago.tarjeta ? ` (${pago.tarjeta})` : ""}\n`
       );
     }
   }
@@ -709,7 +769,9 @@ async function designFullTicket(printer, connection,  ticketData, translations, 
   if (ticketData.credito) {
     await printer.write(`${SEPARATOR}\n`);
     await printer.write(
-      `${translations.credit}: ${ticketData.simbolo_moneda}${ticketData.credito.total_credito.toFixed(2)}\n`
+      `${translations.credit}: ${
+        ticketData.simbolo_moneda
+      }${ticketData.credito.total_credito.toFixed(2)}\n`
     );
     await printer.write(
       `${translations.num_installments}: ${ticketData.credito.num_cuotas}\n`
@@ -725,7 +787,7 @@ async function designFullTicket(printer, connection,  ticketData, translations, 
   await printer.write(`${translations.thank_you}\n`);
   await printer.write(`${translations.come_again}\n`);
 
-   // Alimentar y cortar papel
+  // Alimentar y cortar papel
   await printer.feed(6);
   await printer.cutter();
 
@@ -738,15 +800,19 @@ async function designFullTicket(printer, connection,  ticketData, translations, 
   console.log("  abrirGavetaConfig:", abrirGavetaConfig); // Para depuración
   console.log("  esPagoEfectivo:", esPagoEfectivo); // Para depuración
 
-   if (abrirGavetaConfig && esPagoEfectivo) {
+  if (abrirGavetaConfig && esPagoEfectivo) {
     console.log("Intentando abrir gaveta usando connection.write()...");
     const drawerCommand = Buffer.from([0x1b, 0x70, 0x00, 0x32, 0x32]); // Pin 2, 100ms ON, 100ms OFF
 
-    if (connection && typeof connection.write === 'function') {
-      connection.write(drawerCommand); 
-      console.log("Comando de apertura de gaveta enviado al buffer (via connection.write).");
+    if (connection && typeof connection.write === "function") {
+      connection.write(drawerCommand);
+      console.log(
+        "Comando de apertura de gaveta enviado al buffer (via connection.write)."
+      );
     } else {
-      console.error("ERROR: connection.write() no está disponible. No se puede abrir la gaveta con comando crudo.");
+      console.error(
+        "ERROR: connection.write() no está disponible. No se puede abrir la gaveta con comando crudo."
+      );
     }
   }
 }
@@ -786,12 +852,13 @@ async function designOrderSlipUnix(printer, ticketData, translations) {
 
     // Iterar sobre los modificadores
     for (const modificador of pedido.modificadores) {
-      const espacio = String('').padEnd(8);
-      const modTexto = `  * ${modificador.cantidad}x ${modificador.nombre}`.padEnd(32);
+      const espacio = String("").padEnd(8);
+      const modTexto =
+        `  * ${modificador.cantidad}x ${modificador.nombre}`.padEnd(32);
       await printer.write(`${espacio}${modTexto}\n`);
     }
     if (pedido.notaPedido !== null && pedido.notaPedido !== undefined) {
-      const espacio = String('').padEnd(8);
+      const espacio = String("").padEnd(8);
       const notTexto = `  - ${modificador.notaPedido}`.padEnd(32);
       await printer.write(`${espacio}${notTexto}\n`);
     }
@@ -804,10 +871,8 @@ async function designOrderSlipUnix(printer, ticketData, translations) {
   await printer.cutter();
 }
 
-
 async function designOrderSlipWindows(printer, ticketData, translations) {
-
-  console.log('DATA COMANDA: ', ticketData);
+  console.log("DATA COMANDA: ", ticketData);
 
   const SEPARATOR = "=".repeat(48);
   const LINE_SEPARATOR = "-".repeat(48);
@@ -833,7 +898,7 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
   await printer.feed(1);
   await printer.setAlignment(Align.Center);
   await printer.write(`${STAR_SEPARATOR}\n`);
-  await printer.write("\x1B\x21\x30"); 
+  await printer.write("\x1B\x21\x30");
   await printer.write(`${translations.order_slip}\n`);
   await printer.write("\x1B\x21\x00");
   await printer.write(`${SEPARATOR}\n`);
@@ -844,65 +909,73 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
   await printer.write("\x1B\x21\x00");
   await printer.write(`${translations.area}: ${ticketData.area}\n`);
   await printer.write(`${ticketData.mesa || translations.unassigned}\n`);
-  await printer.write(`Cantidad personas: ${ticketData.cantidad_personas || translations.unassigned}\n`);
-  await printer.write(`${'Mesero'}: ${ticketData.mesero}\n`);
-  await printer.write(`${'Fecha'}: ${ticketData.fecha}\n`);
+  await printer.write(
+    `Cantidad personas: ${
+      ticketData.cantidad_personas || translations.unassigned
+    }\n`
+  );
+  await printer.write(`${"Mesero"}: ${ticketData.mesero}\n`);
+  await printer.write(`${"Fecha"}: ${ticketData.fecha}\n`);
   await printer.write(`${SEPARATOR}\n`);
 
   await printer.write(`${translations.qty.padEnd(8)}${translations.product}\n`);
   await printer.write(`${LINE_SEPARATOR}\n`);
 
- 
-for (const pedido of ticketData.pedidos) {
-  const cantidad = `${pedido.cantidad}`.padEnd(8);
-  const indentacion = " ".repeat(8); 
+  for (const pedido of ticketData.pedidos) {
+    const cantidad = `${pedido.cantidad}`.padEnd(8);
+    const indentacion = " ".repeat(8);
 
-  const lineasProducto = splitText(pedido.presentacion || pedido.producto, 45);
+    const lineasProducto = splitText(
+      pedido.presentacion || pedido.producto,
+      45
+    );
 
-  for (let i = 0; i < lineasProducto.length; i++) {
-    const linea = lineasProducto[i];
-    const esPrimeraLinea = (i === 0);
-    const esUltimaLinea = (i === lineasProducto.length - 1);
+    for (let i = 0; i < lineasProducto.length; i++) {
+      const linea = lineasProducto[i];
+      const esPrimeraLinea = i === 0;
+      const esUltimaLinea = i === lineasProducto.length - 1;
 
-    if (esPrimeraLinea) {
-      await printer.write(cantidad);
-    } else {
-      await printer.write(indentacion);
+      if (esPrimeraLinea) {
+        await printer.write(cantidad);
+      } else {
+        await printer.write(indentacion);
+      }
+
+      await printer.write(linea);
+
+      if (esUltimaLinea && pedido.paraLlevar) {
+        await printer.write(" ");
+        await printer.write("\x1B\x21\x08");
+        await printer.write("(Para Llevar)");
+        await printer.write("\x1B\x21\x00");
+      }
+
+      await printer.write("\n");
     }
 
-    await printer.write(linea);
+    if (pedido.modificadores && pedido.modificadores.length > 0) {
+      for (const modificador of pedido.modificadores) {
+        const modNombre = splitText(
+          `* ${modificador.cantidad}x ${modificador.nombre}`,
+          40
+        );
 
-    if (esUltimaLinea && pedido.paraLlevar) {
-      await printer.write(" ");
-      await printer.write("\x1B\x21\x08");
-      await printer.write("(Para Llevar)");
-      await printer.write("\x1B\x21\x00");
+        for (const lineaMod of modNombre) {
+          await printer.write(`${indentacion}${lineaMod}\n`);
+        }
+      }
+    }
+
+    if (pedido.notaPedido) {
+      const lineasNota = splitText(pedido.notaPedido, 40);
+      await printer.write(`${indentacion}- Nota:\n`);
+      for (const linea of lineasNota) {
+        await printer.write(`${indentacion}  ${linea}\n`);
+      }
     }
 
     await printer.write("\n");
   }
-
-  if (pedido.modificadores && pedido.modificadores.length > 0) {
-    for (const modificador of pedido.modificadores) {
-      const modNombre = splitText(`* ${modificador.cantidad}x ${modificador.nombre}`, 40);
-
-      for (const lineaMod of modNombre) {
-        await printer.write(`${indentacion}${lineaMod}\n`);
-      }
-    }
-  }
-
-  if (pedido.notaPedido) {
-    const lineasNota = splitText(pedido.notaPedido, 40);
-    await printer.write(`${indentacion}- Nota:\n`);
-    for (const linea of lineasNota) {
-      await printer.write(`${indentacion}  ${linea}\n`);
-    }
-  }
-
- 
-  await printer.write('\n');
-}
 
   await printer.write(`${STAR_SEPARATOR}\n`);
 
@@ -912,5 +985,5 @@ for (const pedido of ticketData.pedidos) {
 
 module.exports = {
   printTicket,
-  setAppDataPath
+  setAppDataPath,
 };
