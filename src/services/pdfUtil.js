@@ -1025,6 +1025,12 @@ async function cancelledOrderWindows(printer, ticketData, translations) {
     `${translations.room}: ${ticketData.salon},  ${translations.table}: ${ticketData.mesa}\n`
   );
   await printer.write(`${"Anulado por"}: ${ticketData.anulado_por}\n`);
+
+  if (ticketData.anulacion_autorizada_por != null) {
+    await printer.write(
+      `${"Autorizado por"}: ${ticketData.anulacion_autorizada_por}\n`
+    );
+  }
   await printer.write(`${"Comandado por"}: ${ticketData.comandado_por}\n`);
   await printer.write(`${"Fecha"}: ${ticketData.fecha}\n`);
   await printer.write(`${SEPARATOR}\n`);
