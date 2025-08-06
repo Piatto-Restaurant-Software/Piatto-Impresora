@@ -36,5 +36,6 @@
   "tranfers_total": "Total Transfer",
   "general_cash_total": "General Cash Total",
   "total_cash": "Total Cash",
-  "cancelled_order": "ORDER CANCELLED"
+  "cancelled_order": "ORDER CANCELLED",
+  "change": "Change"
 }
