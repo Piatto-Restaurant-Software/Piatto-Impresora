@@ -3,6 +3,8 @@ const path = require("path");
 const { exec } = require("child_process");
 const os = require("os");
 
+const TipoDocumentoFacturaValueConstant = require("../constants/tipo-documento-factura-constant");
+
 // Librería de impresión
 const { Printer, InMemory, Align, Drawer } = require("escpos-buffer");
 
@@ -626,6 +628,7 @@ async function designFullTicket(
 ) {
   const SEPARATOR = "=".repeat(48);
   const LINE_SEPARATOR = "-".repeat(48);
+  const billingData = ticketData.billing;
 
   // Función para dividir texto en líneas de un largo específico
   function splitText(text, length) {
@@ -649,7 +652,15 @@ async function designFullTicket(
   await printer.feed(1);
   await printer.setAlignment(Align.Center);
   await printer.write("\x1B\x21\x30"); // Texto grande/negrita
-  await printer.write(`${translations.full_ticket}\n`);
+  if (
+    billingData != null &&
+    billingData.tipoFactura ==
+      TipoDocumentoFacturaValueConstant.comprobanteCreditoFiscal
+  ) {
+    await printer.write(`${translations.ccf}\n`);
+  } else {
+    await printer.write(`${translations.full_ticket}\n`);
+  }
   await printer.write("\x1B\x21\x00"); // Texto normal
   await printer.write(`${SEPARATOR}\n`);
 
@@ -791,6 +802,14 @@ async function designFullTicket(
     await printer.write(
       `${translations.num_installments}: ${ticketData.credito.num_cuotas}\n`
     );
+  }
+
+  //Imprimir QR con pdf documento
+  if (billingData != null) {
+    await printer.setAlignment(Align.Center);
+    await printer.write(`${SEPARATOR}\n`);
+    await printer.write(`${translations.download_document}\n`);
+    await printer.qrcode(billingData.pdf_path.toString(), { size: 6 });
   }
 
   // Pie del ticket
