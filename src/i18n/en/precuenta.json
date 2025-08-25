@@ -39,5 +39,8 @@
   "total_cash": "Total Cash",
   "cancelled_order": "ORDER CANCELLED",
   "change": "Change",
-  "download_document": "Download your document at this link"
+  "download_document": "Download your document at this link",
+  "codigo_generacion": "Generation code",
+  "numero_control": "Control number",
+  "sello_recepcion": "Reception seal"
 }

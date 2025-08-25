@@ -19,7 +19,7 @@
   "num_installments": "Número de cuotas",
   "discount": "Descuento",
   "full_ticket": "Ticket",
-  "ccf": "Comprobante de credito fiscal",
+  "ccf": "Comprobante de credito  fiscal",
   "order_slip": "Comanda",
   "waiter": "Mesero",
   "area": "Area",
@@ -39,5 +39,8 @@
   "total_caja": "Total Caja",
   "cancelled_order": "PEDIDO ANULADO",
   "change": "Vuelto",
-  "download_document": "Descarga tu documento en este enlace"
+  "download_document": "Descarga tu documento en este enlace",
+  "codigo_generacion": "Codigo generacion",
+  "numero_control": "Numero control",
+  "sello_recepcion": "Sello recepcion"
 }
