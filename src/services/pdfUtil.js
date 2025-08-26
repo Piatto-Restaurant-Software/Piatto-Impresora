@@ -3,8 +3,13 @@ const path = require("path");
 const { exec } = require("child_process");
 const os = require("os");
 
+const {
+  COMPROBANTE_CREDITO_FISCAL,
+} = require("../constants/tipo-documento-factura-constant");
+
 // Librería de impresión
 const { Printer, InMemory, Align, Drawer } = require("escpos-buffer");
+const { ImageManager } = require("escpos-buffer-image");
 
 // Variables para almacenar las rutas (se establecerán desde main.js)
 let outputDir;
@@ -370,7 +375,8 @@ async function printTicketWindows(
   abrirGavetaConfig
 ) {
   const connection = new InMemory();
-  const printer = await Printer.CONNECT("POS-80", connection);
+  const imageManager = new ImageManager();
+  const printer = await Printer.CONNECT("POS-80", connection, imageManager);
 
   console.log("Imprimiendo en Windows:", ticketData);
 
@@ -626,6 +632,7 @@ async function designFullTicket(
 ) {
   const SEPARATOR = "=".repeat(48);
   const LINE_SEPARATOR = "-".repeat(48);
+  const billingData = ticketData.billing;
 
   // Función para dividir texto en líneas de un largo específico
   function splitText(text, length) {
@@ -649,7 +656,15 @@ async function designFullTicket(
   await printer.feed(1);
   await printer.setAlignment(Align.Center);
   await printer.write("\x1B\x21\x30"); // Texto grande/negrita
-  await printer.write(`${translations.full_ticket}\n`);
+
+  if (
+    billingData != null &&
+    billingData.tipo_factura === COMPROBANTE_CREDITO_FISCAL
+  ) {
+    await printer.write(`${translations.ccf}\n`);
+  } else {
+    await printer.write(`${translations.full_ticket}\n`);
+  }
   await printer.write("\x1B\x21\x00"); // Texto normal
   await printer.write(`${SEPARATOR}\n`);
 
@@ -664,16 +679,37 @@ async function designFullTicket(
 
   // Información del cliente y venta
   await printer.setAlignment(Align.Left);
+
   if (ticketData.cuenta_venta.nombre_cliente_generico) {
     await printer.write(
       `${translations.client}: ${ticketData.cuenta_venta.nombre_cliente_generico}\n`
     );
   }
-  await printer.write(`${translations.table}: ${ticketData.venta.mesa}\n`);
-  await printer.write(
-    `${translations.seller}: ${ticketData.usuario.nombre} ${ticketData.usuario.apellidos}\n`
-  );
-  await printer.write(`${translations.date}: ${ticketData.venta.fin_venta}\n`);
+
+  if (
+    billingData != null &&
+    billingData.tipo_factura === COMPROBANTE_CREDITO_FISCAL
+  ) {
+    await printer.write(`${translations.date}: ${billingData.fecha_emision}\n`);
+    await printer.write(
+      `${translations.codigo_generacion}: ${billingData.codigo_generacion}\n`
+    );
+    await printer.write(
+      `${translations.numero_control}: ${billingData.numero_control}\n`
+    );
+    await printer.write(
+      `${translations.sello_recepcion}: ${billingData.sello_recepcion}\n`
+    );
+  } else {
+    await printer.write(`${translations.table}: ${ticketData.venta.mesa}\n`);
+    await printer.write(
+      `${translations.seller}: ${ticketData.usuario.nombre} ${ticketData.usuario.apellidos}\n`
+    );
+    await printer.write(
+      `${translations.date}: ${ticketData.venta.fin_venta}\n`
+    );
+  }
+
   await printer.write(`${SEPARATOR}\n`);
 
   // Encabezado de productos
@@ -791,6 +827,14 @@ async function designFullTicket(
     await printer.write(
       `${translations.num_installments}: ${ticketData.credito.num_cuotas}\n`
     );
+  }
+
+  //Imprimir QR con pdf documento
+  if (billingData != null) {
+    await printer.setAlignment(Align.Center);
+    await printer.write(`${SEPARATOR}\n`);
+    await printer.write(`${translations.download_document}\n`);
+    await printer.qrcode(billingData.pdf_path.toString(), 5);
   }
 
   // Pie del ticket

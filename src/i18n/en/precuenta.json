@@ -19,6 +19,7 @@
   "num_installments": "Number of installments",
   "discount": "Discount",
   "full_ticket": "Ticket",
+  "ccf": "Tax credit receipt",
   "order_slip": "Order Slip",
   "waiter": "Waiter",
   "area": "Area",
@@ -37,5 +38,9 @@
   "general_cash_total": "General Cash Total",
   "total_cash": "Total Cash",
   "cancelled_order": "ORDER CANCELLED",
-  "change": "Change"
+  "change": "Change",
+  "download_document": "Download your document at this link",
+  "codigo_generacion": "Generation code",
+  "numero_control": "Control number",
+  "sello_recepcion": "Reception seal"
 }

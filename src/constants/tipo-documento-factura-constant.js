@@ -1,0 +1,5 @@
+module.exports = {
+  FACTURA: "01",
+  NOTA_CREDITO: "05",
+  COMPROBANTE_CREDITO_FISCAL: "03"
+};
