@@ -680,15 +680,16 @@ async function designFullTicket(
   // Información del cliente y venta
   await printer.setAlignment(Align.Left);
 
+  if (ticketData.cuenta_venta.nombre_cliente_generico) {
+    await printer.write(
+      `${translations.client}: ${ticketData.cuenta_venta.nombre_cliente_generico}\n`
+    );
+  }
+
   if (
     billingData != null &&
     billingData.tipo_factura === COMPROBANTE_CREDITO_FISCAL
   ) {
-    if (ticketData.cuenta_venta.nombre_cliente_generico) {
-      await printer.write(
-        `${translations.client}: ${ticketData.cuenta_venta.nombre_cliente_generico}\n`
-      );
-    }
     await printer.write(`${translations.date}: ${billingData.fecha_emision}\n`);
     await printer.write(
       `${translations.codigo_generacion}: ${billingData.codigo_generacion}\n`
@@ -700,11 +701,6 @@ async function designFullTicket(
       `${translations.sello_recepcion}: ${billingData.sello_recepcion}\n`
     );
   } else {
-    if (ticketData.cuenta_venta.nombre_cliente_generico) {
-      await printer.write(
-        `${translations.client}: ${ticketData.cuenta_venta.nombre_cliente_generico}\n`
-      );
-    }
     await printer.write(`${translations.table}: ${ticketData.venta.mesa}\n`);
     await printer.write(
       `${translations.seller}: ${ticketData.usuario.nombre} ${ticketData.usuario.apellidos}\n`
