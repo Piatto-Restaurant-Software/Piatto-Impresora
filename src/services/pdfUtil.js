@@ -694,6 +694,11 @@ async function designFullTicket(
     await printer.write(
       `${translations.sello_recepcion}: ${billingData.sello_recepcion}\n`
     );
+    if (ticketData.cuenta_venta.nombre_cliente_generico) {
+      await printer.write(
+        `${translations.client}: ${ticketData.cuenta_venta.nombre_cliente_generico}\n`
+      );
+    }
   } else {
     if (ticketData.cuenta_venta.nombre_cliente_generico) {
       await printer.write(
