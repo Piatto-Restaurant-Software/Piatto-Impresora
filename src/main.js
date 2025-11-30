@@ -24,6 +24,32 @@ let lastPrinterState = [];
 const uiService = new UIService();
 const printerService = new PrinterService();
 
+let AREA_IDENTIFIER = "caja";
+
+checkConfigFile = () => {
+  try {
+    const configPath = path.join(app.getPath("userData"), "config.json");
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      if (config.printer_name) {
+        AREA_IDENTIFIER = config.printer_name;
+        console.log(
+          `Configuracion cargada: Esta PC es el area "${AREA_IDENTIFIER}"`
+        );
+      }
+    } else {
+      // Si no existe, creamos uno básico para que el usuario sepa que puede editarlo
+      fs.writeFileSync(
+        configPath,
+        JSON.stringify({ printer_name: "caja" }, null, 2)
+      );
+      console.log(`Archivo de configuracion creado en: ${configPath}`);
+    }
+  } catch (e) {
+    console.error("Error leyendo configuración de área, usando defecto:", e);
+  }
+};
+
 // Inicialización principal de la aplicación
 app.whenReady().then(() => {
   const gotTheLock = app.requestSingleInstanceLock();
@@ -100,6 +126,7 @@ function startServer() {
         "info",
         `Express server has started on IP: ${getLocalIPAddress()} and port 3001`
       );
+      checkConfigFile();
       publishBonjourService();
       startUDPBroadcast();
     });
@@ -169,10 +196,12 @@ function getBroadcastAddress() {
 
     for (const iface of ifaceList) {
       if (iface.family === "IPv4" && !iface.internal && iface.netmask) {
-        const ipParts = iface.address.split('.').map(Number);
-        const maskParts = iface.netmask.split('.').map(Number);
-        const broadcastParts = ipParts.map((ip, i) => ip | (~maskParts[i] & 255));
-        return broadcastParts.join('.');
+        const ipParts = iface.address.split(".").map(Number);
+        const maskParts = iface.netmask.split(".").map(Number);
+        const broadcastParts = ipParts.map(
+          (ip, i) => ip | (~maskParts[i] & 255)
+        );
+        return broadcastParts.join(".");
       }
     }
   }
@@ -181,17 +210,18 @@ function getBroadcastAddress() {
   for (const ifaceList of Object.values(nets)) {
     for (const iface of ifaceList) {
       if (iface.family === "IPv4" && !iface.internal && iface.netmask) {
-        const ipParts = iface.address.split('.').map(Number);
-        const maskParts = iface.netmask.split('.').map(Number);
-        const broadcastParts = ipParts.map((ip, i) => ip | (~maskParts[i] & 255));
-        return broadcastParts.join('.');
+        const ipParts = iface.address.split(".").map(Number);
+        const maskParts = iface.netmask.split(".").map(Number);
+        const broadcastParts = ipParts.map(
+          (ip, i) => ip | (~maskParts[i] & 255)
+        );
+        return broadcastParts.join(".");
       }
     }
   }
 
   return "255.255.255.255"; // fallback seguro
 }
-
 
 function startUDPBroadcast() {
   const localIP = getLocalIPAddress();
@@ -204,6 +234,7 @@ function startUDPBroadcast() {
     port: 3001,
     serviceName: "POS-Impresora",
     timestamp: Date.now(),
+    name: AREA_IDENTIFIER,
   });
 
   const udpServer = dgram.createSocket("udp4");
@@ -499,7 +530,13 @@ async function processSinglePrint(
   }
 
   printQueue.addJob(async () => {
-    await printTicket(data, printerName, translations, ticketType, abrirGavetaConfig);
+    await printTicket(
+      data,
+      printerName,
+      translations,
+      ticketType,
+      abrirGavetaConfig
+    );
   }, ticketType);
 
   res.send({
