@@ -417,7 +417,6 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
   try {
     const { data, printerName, ticketType } = req.body;
 
-    console.log("DATA RECIBIDA DESDE POST: ", data);
     console.log("TIPO DE IMPRESION: ", ticketType);
     console.log("NOMBRE DE IMPRESORA: ", printerName);
 
@@ -484,14 +483,14 @@ async function processBatchPrint(data, translations, ticketType) {
         );
       }
 
-      const isConnected = await new PrinterService().testPrinterConnection(
+      /* const isConnected = await new PrinterService().testPrinterConnection(
         comanda.impresora.nombre
       );
       if (!isConnected) {
         throw new Error(
           `Impresora ${comanda.impresora.nombre} no está conectada`
         );
-      }
+      } */
 
       printQueue.addJob(async () => {
         await printTicket(
@@ -519,7 +518,7 @@ async function processSinglePrint(
   res,
   abrirGavetaConfig
 ) {
-  const isConnected = await new PrinterService().testPrinterConnection(
+  /* const isConnected = await new PrinterService().testPrinterConnection(
     printerName
   );
   if (!isConnected) {
@@ -527,7 +526,7 @@ async function processSinglePrint(
       success: false,
       message: "La impresora no está conectada o activa.",
     });
-  }
+  } */
 
   printQueue.addJob(async () => {
     await printTicket(
