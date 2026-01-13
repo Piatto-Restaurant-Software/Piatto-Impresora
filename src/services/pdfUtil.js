@@ -883,7 +883,11 @@ async function designFullTicket(
   }
 
   //Imprimir QR con pdf documento
-  if (billingData != null && billingData.id_pais != GUATEMALA) {
+  if (
+    billingData != null &&
+    billingData.id_pais != GUATEMALA &&
+    (billingData.pdf_path != null || billingData.pdf_path != undefined)
+  ) {
     await printer.setAlignment(Align.Center);
     await printer.write(`${SEPARATOR}\n`);
     await printer.write(`${translations.download_document}\n`);
