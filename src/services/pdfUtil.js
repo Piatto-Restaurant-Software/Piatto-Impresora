@@ -11,6 +11,10 @@ const {
 const { Printer, InMemory, Align, Drawer } = require("escpos-buffer");
 const { ImageManager } = require("escpos-buffer-image");
 
+const {
+  GUATEMALA,
+} = require("../constants/pais-constant");
+
 // Variables para almacenar las rutas (se establecerán desde main.js)
 let outputDir;
 let outputPath;
@@ -673,14 +677,26 @@ async function designFullTicket(
     billingData.tipo_factura === COMPROBANTE_CREDITO_FISCAL
   ) {
     await printer.write(`${translations.ccf}\n`);
+  } else if (billingData != null && billingData.id_pais == GUATEMALA) {
+    await printer.write(`FACTURA\n`);
   } else {
     await printer.write(`${translations.full_ticket}\n`);
   }
   await printer.write("\x1B\x21\x00"); // Texto normal
   await printer.write(`${SEPARATOR}\n`);
 
-  // Información del local
+  //* ======================================================
+  //* ============== Información del local =================
+  //* ======================================================
+  if (billingData != null && billingData.id_pais == GUATEMALA) {
+    // Razon social solo en GT
+    await printer.write(`${ticketData.local.razon_social}\n`);
+  }
   await printer.write(`${ticketData.local.nombre}\n`);
+  if (billingData != null && billingData.id_pais == GUATEMALA) {
+    // direccion solo en GT
+    await printer.write(`${ticketData.local.direccion}\n`);
+  }
   await printer.write(`${ticketData.local.telefono}\n`);
   if (ticketData.local.nit) {
     await printer.write(`NIT: ${ticketData.local.nit}\n`);
@@ -688,13 +704,39 @@ async function designFullTicket(
   await printer.write(`Numero: ${ticketData.numero_comprobante}\n`);
   await printer.write(`${SEPARATOR}\n`);
 
-  // Información del cliente y venta
-  await printer.setAlignment(Align.Left);
+  //* ======================================================
+  //* ============== Información de FE GT =================
+  //* ======================================================
+  if (billingData != null && billingData.id_pais == GUATEMALA) {
+    await printer.write(`REGIMEN FEL DOCUMENTO TRIBUTARIO ELECTRONICO\n`);
+    await printer.write(`Nro Autorizacion: ${billingData.id_factura_infile}\n`);
+    await printer.write(`Serie: ${billingData.serie}\n`);
+    await printer.write(`Nro: ${billingData.numero_documento}\n`);
+    await printer.write(`SUJETO A PAGOS TRIMESTRALES ISR\n`);
+    await printer.write(`${SEPARATOR}\n`);
+  }
 
+
+  //* ======================================================
+  //* ========== Información del cliente y venta ===========
+  //* ======================================================
+  await printer.setAlignment(Align.Left);
   if (ticketData.cuenta_venta.nombre_cliente_generico) {
     await printer.write(
       `${translations.client}: ${ticketData.cuenta_venta.nombre_cliente_generico}\n`
     );
+  }
+
+  if (
+    billingData != null &&
+    billingData.id_pais == GUATEMALA &&
+    ticketData.cuenta_venta.cliente != null
+  ) {
+    const cliente = ticketData.cuenta_venta.cliente;
+    await printer.write(
+      `${cliente.tipo_documento}: ${cliente.numero_documento}\n`
+    );
+    await printer.write(`Direccion: ${cliente.direccion}\n`);
   }
 
   if (
@@ -841,7 +883,7 @@ async function designFullTicket(
   }
 
   //Imprimir QR con pdf documento
-  if (billingData != null) {
+  if (billingData != null && billingData.id_pais != GUATEMALA) {
     await printer.setAlignment(Align.Center);
     await printer.write(`${SEPARATOR}\n`);
     await printer.write(`${translations.download_document}\n`);
