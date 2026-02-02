@@ -13,6 +13,7 @@ const { ImageManager } = require("escpos-buffer-image");
 
 const {
   GUATEMALA,
+  HONDURAS,
 } = require("../constants/pais-constant");
 
 // Variables para almacenar las rutas (se establecerán desde main.js)
@@ -737,6 +738,17 @@ async function designFullTicket(
       `${cliente.tipo_documento}: ${cliente.numero_documento}\n`
     );
     await printer.write(`Direccion: ${cliente.direccion}\n`);
+  }
+
+  //* Documento cliente HN
+  if (
+    ticketData.cuenta_venta.cliente != null &&
+    ticketData.cuenta_venta.cliente.id_pais == HONDURAS
+  ) {
+    const cliente = ticketData.cuenta_venta.cliente;
+    await printer.write(
+      `${cliente.tipo_documento}: ${cliente.numero_documento}\n`,
+    );
   }
 
   if (
