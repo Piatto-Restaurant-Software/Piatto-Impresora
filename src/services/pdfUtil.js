@@ -861,23 +861,25 @@ async function designFullTicket(
     await printer.write(`${SEPARATOR}\n`);
     await printer.write(`${translations.payments}\n`);
     for (const pago of ticketData.pagos) {
-      if (pago.tipo_pago.id == 1) {
-        await printer.write(
-          `${pago.tipo_pago.nombre}: ${ticketData.simbolo_moneda}${ticketData.pago_efectivo}\n`
-        );
-
-        await printer.write(
-          `${translations.change}: ${ticketData.simbolo_moneda}${ticketData.vuelto}\n`
-        );
-      } else {
-        await printer.write(
+      if (pago.tipo_pago.id != 1) {
+       await printer.write(
           `${pago.tipo_pago.nombre}: ${
             ticketData.simbolo_moneda
           }${pago.monto.toFixed(2)}${
             pago.tarjeta ? ` (${pago.tarjeta})` : ""
           }\n`
         );
-      }
+      } 
+    }
+
+    if(ticketData.pagos.some(item => item.tipo_pago.id === 1)) {
+      await printer.write(
+        `Efectivo: ${ticketData.simbolo_moneda}${ticketData.pago_efectivo}\n`
+      );
+
+      await printer.write(
+        `${translations.change}: ${ticketData.simbolo_moneda}${ticketData.vuelto}\n`
+      );
     }
   }
 
