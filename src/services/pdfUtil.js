@@ -11,10 +11,7 @@ const {
 const { Printer, InMemory, Align, Drawer } = require("escpos-buffer");
 const { ImageManager } = require("escpos-buffer-image");
 
-const {
-  GUATEMALA,
-  HONDURAS,
-} = require("../constants/pais-constant");
+const { GUATEMALA, HONDURAS } = require("../constants/pais-constant");
 
 // Variables para almacenar las rutas (se establecerán desde main.js)
 let outputDir;
@@ -38,7 +35,7 @@ async function printTicket(
   printerName,
   translations,
   ticketType,
-  abrirGavetaConfig
+  abrirGavetaConfig,
 ) {
   try {
     if (os.platform() === "win32") {
@@ -47,7 +44,7 @@ async function printTicket(
         printerName,
         translations,
         ticketType,
-        abrirGavetaConfig
+        abrirGavetaConfig,
       );
     } else {
       await printTicketUnix(
@@ -55,7 +52,7 @@ async function printTicket(
         printerName,
         translations,
         ticketType,
-        abrirGavetaConfig
+        abrirGavetaConfig,
       );
     }
   } catch (error) {
@@ -71,7 +68,7 @@ async function printTicketUnix(
   ticketData,
   printerName,
   translations,
-  ticketType
+  ticketType,
 ) {
   const connection = new InMemory();
   const printer = await Printer.CONNECT("POS-80", connection);
@@ -120,7 +117,7 @@ async function designTestTicket(printer, testData, translations) {
   const TEXT_BOLD_LARGE = ESC + "!\x30";
   const TEXT_NORMAL = ESC + "!\x00";
   const CUT_PAPER = GS + "V\x41\x00";
-  
+
   const SEPARATOR = "=".repeat(48) + "\n";
   const LINE_SEPARATOR = "-".repeat(48) + "\n";
 
@@ -186,7 +183,10 @@ async function designTestTicket(printer, testData, translations) {
   // Totales
   b += JUSTIFY_RIGHT;
   b += `${translations.subtotal}: $${testData.cuenta_venta.subtotal.toFixed(2)}\n`;
-  b += TEXT_BOLD_LARGE + `${translations.total}: $${testData.cuenta_venta.total.toFixed(2)}\n` + TEXT_NORMAL;
+  b +=
+    TEXT_BOLD_LARGE +
+    `${translations.total}: $${testData.cuenta_venta.total.toFixed(2)}\n` +
+    TEXT_NORMAL;
 
   // Pie de página
   b += JUSTIFY_CENTER + SEPARATOR;
@@ -221,7 +221,7 @@ async function designTicketCierreWindows(printer, data, translations) {
   const TEXT_BOLD = ESC + "!\x08";
   const TEXT_NORMAL = ESC + "!\x00";
   const CUT_PAPER = GS + "V\x41\x00";
-  
+
   const SEPARATOR = "=".repeat(48) + "\n";
   const LINE_SEPARATOR = "-".repeat(48) + "\n";
 
@@ -282,7 +282,10 @@ async function designTicketCierreWindows(printer, data, translations) {
   addRow("Venta credito general:", data.venta_credito_general);
   addRow("Venta credito intermediario:", data.total_credito_intermediarios);
 
-  if (Array.isArray(data.venta_credito_intermediarios) && data.venta_credito_intermediarios.length > 0) {
+  if (
+    Array.isArray(data.venta_credito_intermediarios) &&
+    data.venta_credito_intermediarios.length > 0
+  ) {
     b += LINE_SEPARATOR;
     for (const venta of data.venta_credito_intermediarios) {
       addRow(venta.nombre, venta.total);
@@ -371,7 +374,7 @@ async function printTicketWindows(
   printerName,
   translations,
   ticketType,
-  abrirGavetaConfig
+  abrirGavetaConfig,
 ) {
   const connection = new InMemory();
   const imageManager = new ImageManager();
@@ -388,7 +391,7 @@ async function printTicketWindows(
           connection,
           ticketData,
           translations,
-          abrirGavetaConfig
+          abrirGavetaConfig,
         );
         break;
       case "Precuenta":
@@ -414,7 +417,7 @@ async function printTicketWindows(
     // Comando de impresión genérico para Windows
     const printCommand = `copy /B "${tempFile}" "\\\\127.0.0.1\\${printerName.replace(
       / /g,
-      ""
+      "",
     )}"`;
 
     exec(printCommand, (error) => {
@@ -445,7 +448,7 @@ async function designPreBillUnix(printer, ticketData, translations) {
   const TEXT_BOLD_LARGE = ESC + "!\x30";
   const TEXT_NORMAL = ESC + "!\x00";
   const CUT_PAPER = GS + "V\x41\x00";
-  
+
   const SEPARATOR = "=".repeat(48) + "\n";
   const LINE_SEPARATOR = "-".repeat(48) + "\n";
 
@@ -491,7 +494,10 @@ async function designPreBillUnix(printer, ticketData, translations) {
     const cantidad = pedido.cantidad.toString().padEnd(6);
     const pUnitario = `$${pedido.precio_unitario.toFixed(2)}`.padStart(8);
     const pTotal = `$${pedido.precio_total.toFixed(2)}`.padStart(8);
-    const lineasProducto = getProductLines(pedido.producto_presentacion.nombre, 20);
+    const lineasProducto = getProductLines(
+      pedido.producto_presentacion.nombre,
+      20,
+    );
 
     // Primera línea de la fila
     b += `${cantidad}${lineasProducto[0].padEnd(20)}    ${pUnitario}    ${pTotal}\n`;
@@ -507,7 +513,10 @@ async function designPreBillUnix(printer, ticketData, translations) {
   // Totales
   b += JUSTIFY_RIGHT;
   b += `${translations.subtotal}: $${ticketData.subtotal.toFixed(2)}\n`;
-  b += TEXT_BOLD_LARGE + `${translations.total}: $${ticketData.total.toFixed(2)}\n` + TEXT_NORMAL;
+  b +=
+    TEXT_BOLD_LARGE +
+    `${translations.total}: $${ticketData.total.toFixed(2)}\n` +
+    TEXT_NORMAL;
 
   // Pie de página
   b += JUSTIFY_CENTER + SEPARATOR;
@@ -542,7 +551,7 @@ async function designPreBillWindows(printer, ticketData, translations) {
   const TEXT_BOLD_LARGE = ESC + "!\x30";
   const TEXT_NORMAL = ESC + "!\x00";
   const CUT_PAPER = GS + "V\x41\x00";
-  
+
   const SEPARATOR = "=".repeat(48) + "\n";
   const LINE_SEPARATOR = "-".repeat(48) + "\n";
 
@@ -588,8 +597,10 @@ async function designPreBillWindows(printer, ticketData, translations) {
   // Detalles de pedidos
   for (const pedido of ticketData.pedidos) {
     const cantidad = pedido.cantidad.toString().padEnd(6);
-    const pUnitario = `${ticketData.simbolo_moneda}${pedido.precio_unitario}`.padStart(8);
-    const pTotal = `${ticketData.simbolo_moneda}${pedido.precio_total}`.padStart(8);
+    const pUnitario =
+      `${ticketData.simbolo_moneda}${pedido.precio_unitario}`.padStart(8);
+    const pTotal =
+      `${ticketData.simbolo_moneda}${pedido.precio_total}`.padStart(8);
     const producto = pedido.producto_presentacion.nombre;
 
     const lineasProducto = splitText(producto, 26);
@@ -616,7 +627,10 @@ async function designPreBillWindows(printer, ticketData, translations) {
   }
 
   b += `${translations.tip}: ${ticketData.simbolo_moneda}${ticketData.propina_predeterminada}\n`;
-  b += TEXT_BOLD_LARGE + `${translations.total}: ${ticketData.simbolo_moneda}${ticketData.total}\n` + TEXT_NORMAL;
+  b +=
+    TEXT_BOLD_LARGE +
+    `${translations.total}: ${ticketData.simbolo_moneda}${ticketData.total}\n` +
+    TEXT_NORMAL;
 
   // Pie del ticket
   b += JUSTIFY_CENTER + SEPARATOR;
@@ -644,7 +658,7 @@ async function designFullTicket(
   connection,
   ticketData,
   translations,
-  abrirGavetaConfig
+  abrirGavetaConfig,
 ) {
   const SEPARATOR = "=".repeat(48);
   const LINE_SEPARATOR = "-".repeat(48);
@@ -717,14 +731,13 @@ async function designFullTicket(
     await printer.write(`${SEPARATOR}\n`);
   }
 
-
   //* ======================================================
   //* ========== Información del cliente y venta ===========
   //* ======================================================
   await printer.setAlignment(Align.Left);
   if (ticketData.cuenta_venta.nombre_cliente_generico) {
     await printer.write(
-      `${translations.client}: ${ticketData.cuenta_venta.nombre_cliente_generico}\n`
+      `${translations.client}: ${ticketData.cuenta_venta.nombre_cliente_generico}\n`,
     );
   }
 
@@ -735,7 +748,7 @@ async function designFullTicket(
   ) {
     const cliente = ticketData.cuenta_venta.cliente;
     await printer.write(
-      `${cliente.tipo_documento}: ${cliente.numero_documento}\n`
+      `${cliente.tipo_documento}: ${cliente.numero_documento}\n`,
     );
     await printer.write(`Direccion: ${cliente.direccion}\n`);
   }
@@ -757,21 +770,21 @@ async function designFullTicket(
   ) {
     await printer.write(`${translations.date}: ${billingData.fecha_emision}\n`);
     await printer.write(
-      `${translations.codigo_generacion}: ${billingData.codigo_generacion}\n`
+      `${translations.codigo_generacion}: ${billingData.codigo_generacion}\n`,
     );
     await printer.write(
-      `${translations.numero_control}: ${billingData.numero_control}\n`
+      `${translations.numero_control}: ${billingData.numero_control}\n`,
     );
     await printer.write(
-      `${translations.sello_recepcion}: ${billingData.sello_recepcion}\n`
+      `${translations.sello_recepcion}: ${billingData.sello_recepcion}\n`,
     );
   } else {
     await printer.write(`${translations.table}: ${ticketData.venta.mesa}\n`);
     await printer.write(
-      `${translations.seller}: ${ticketData.usuario.nombre} ${ticketData.usuario.apellidos}\n`
+      `${translations.seller}: ${ticketData.usuario.nombre} ${ticketData.usuario.apellidos}\n`,
     );
     await printer.write(
-      `${translations.date}: ${ticketData.venta.fin_venta}\n`
+      `${translations.date}: ${ticketData.venta.fin_venta}\n`,
     );
   }
 
@@ -780,10 +793,10 @@ async function designFullTicket(
   // Encabezado de productos
   await printer.write(
     `${translations.qty.padEnd(6)}${translations.product.padEnd(
-      22
+      22,
     )}${translations.unit_price.padStart(
-      10
-    )}${translations.product_total.padStart(10)}\n`
+      10,
+    )}${translations.product_total.padStart(10)}\n`,
   );
   await printer.write(`${LINE_SEPARATOR}\n`);
 
@@ -804,8 +817,8 @@ async function designFullTicket(
     // Primera línea con cantidad, producto, precios
     await printer.write(
       `${cantidad}${lineasProducto[0].padEnd(
-        22
-      )}${precioUnitario}${precioTotal}\n`
+        22,
+      )}${precioUnitario}${precioTotal}\n`,
     );
 
     // Si el nombre del producto es largo, se imprimen las siguientes líneas debajo
@@ -821,14 +834,14 @@ async function designFullTicket(
   await printer.write(
     `${translations.subtotal}: ${
       ticketData.simbolo_moneda
-    }${ticketData.cuenta_venta.subtotal.toFixed(2)}\n`
+    }${ticketData.cuenta_venta.subtotal.toFixed(2)}\n`,
   );
 
   const descuento = parseFloat(ticketData.cuenta_venta.descuento) || 0;
 
   if (descuento > 0) {
     await printer.write(
-      `${translations.discount}: ${ticketData.simbolo_moneda}${descuento}\n`
+      `${translations.discount}: ${ticketData.simbolo_moneda}${descuento}\n`,
     );
   }
 
@@ -836,14 +849,14 @@ async function designFullTicket(
   if (ticketData.cuenta_venta.impuestos.length > 0) {
     for (const impuesto of ticketData.cuenta_venta.impuestos) {
       await printer.write(
-        `  ${impuesto.impuesto}: ${ticketData.simbolo_moneda}${impuesto.total}\n`
+        `  ${impuesto.impuesto}: ${ticketData.simbolo_moneda}${impuesto.total}\n`,
       );
     }
   }
   await printer.write(
     `${translations.tip}: ${
       ticketData.simbolo_moneda
-    }${ticketData.cuenta_venta.propina_predeterminada.toFixed(2)}\n`
+    }${ticketData.cuenta_venta.propina_predeterminada.toFixed(2)}\n`,
   );
   // await printer.write(
   //   `Impuesto: ${ticketData.simbolo_moneda}${ticketData.cuenta_venta.propina_predeterminada.toFixed(2)}\n`
@@ -852,7 +865,7 @@ async function designFullTicket(
   await printer.write(
     `${translations.total}: ${
       ticketData.simbolo_moneda
-    }${ticketData.cuenta_venta.total.toFixed(2)}\n`
+    }${ticketData.cuenta_venta.total.toFixed(2)}\n`,
   );
   await printer.write("\x1B\x21\x00"); // Texto normal
 
@@ -862,23 +875,23 @@ async function designFullTicket(
     await printer.write(`${translations.payments}\n`);
     for (const pago of ticketData.pagos) {
       if (pago.tipo_pago.id != 1) {
-       await printer.write(
+        await printer.write(
           `${pago.tipo_pago.nombre}: ${
             ticketData.simbolo_moneda
           }${pago.monto.toFixed(2)}${
             pago.tarjeta ? ` (${pago.tarjeta})` : ""
-          }\n`
+          }\n`,
         );
-      } 
+      }
     }
 
-    if(ticketData.pagos.some(item => item.tipo_pago.id === 1)) {
+    if (ticketData.pagos.some((item) => item.tipo_pago.id === 1)) {
       await printer.write(
-        `Efectivo: ${ticketData.simbolo_moneda}${ticketData.pago_efectivo}\n`
+        `Efectivo: ${ticketData.simbolo_moneda}${ticketData.pago_efectivo}\n`,
       );
 
       await printer.write(
-        `${translations.change}: ${ticketData.simbolo_moneda}${ticketData.vuelto}\n`
+        `${translations.change}: ${ticketData.simbolo_moneda}${ticketData.vuelto}\n`,
       );
     }
   }
@@ -889,10 +902,10 @@ async function designFullTicket(
     await printer.write(
       `${translations.credit}: ${
         ticketData.simbolo_moneda
-      }${ticketData.credito.total_credito.toFixed(2)}\n`
+      }${ticketData.credito.total_credito.toFixed(2)}\n`,
     );
     await printer.write(
-      `${translations.num_installments}: ${ticketData.credito.num_cuotas}\n`
+      `${translations.num_installments}: ${ticketData.credito.num_cuotas}\n`,
     );
   }
 
@@ -937,11 +950,11 @@ async function designFullTicket(
     if (connection && typeof connection.write === "function") {
       connection.write(drawerCommand);
       console.log(
-        "Comando de apertura de gaveta enviado al buffer (via connection.write)."
+        "Comando de apertura de gaveta enviado al buffer (via connection.write).",
       );
     } else {
       console.error(
-        "ERROR: connection.write() no está disponible. No se puede abrir la gaveta con comando crudo."
+        "ERROR: connection.write() no está disponible. No se puede abrir la gaveta con comando crudo.",
       );
     }
   }
@@ -961,7 +974,7 @@ async function designOrderSlipUnix(printer, ticketData, translations) {
   const TEXT_BOLD_LARGE = ESC + "!\x30";
   const TEXT_NORMAL = ESC + "!\x00";
   const CUT_PAPER = GS + "V\x41\x00";
-  
+
   const SEPARATOR_STAR = "*".repeat(48) + "\n";
   const SEPARATOR_DOT = ".".repeat(48) + "\n";
   const LINE_SEPARATOR = "-".repeat(48) + "\n";
@@ -970,7 +983,7 @@ async function designOrderSlipUnix(printer, ticketData, translations) {
   let b = "";
 
   // --- CONSTRUCCIÓN DEL TICKET ---
-  
+
   // Encabezado
   b += JUSTIFY_CENTER;
   b += SEPARATOR_STAR;
@@ -993,9 +1006,9 @@ async function designOrderSlipUnix(printer, ticketData, translations) {
   // Iterar sobre los pedidos
   for (const pedido of ticketData.pedidos) {
     const cantidad = String(pedido.cantidad).padEnd(8);
-    const nombreProducto = (pedido.presentacion ?? pedido.producto);
-    
-    // Aquí podrías usar splitText si el nombre es muy largo, 
+    const nombreProducto = pedido.presentacion ?? pedido.producto;
+
+    // Aquí podrías usar splitText si el nombre es muy largo,
     // pero manteniendo tu lógica de padEnd:
     b += `${cantidad}${nombreProducto.padEnd(32)}\n`;
 
@@ -1043,7 +1056,7 @@ async function cancelledOrderWindows(printer, ticketData, translations) {
   const TEXT_NORMAL = ESC + "!\x00";
   const TEXT_BOLD = ESC + "!\x08";
   const CUT_PAPER = GS + "V\x41\x00";
-  
+
   const SEPARATOR = "=".repeat(48) + "\n";
   const LINE_SEPARATOR = "-".repeat(48) + "\n";
   const STAR_SEPARATOR = "*".repeat(48) + "\n";
@@ -1084,7 +1097,7 @@ async function cancelledOrderWindows(printer, ticketData, translations) {
   if (ticketData.anulacion_autorizada_por != null) {
     b += `Autorizado por: ${ticketData.anulacion_autorizada_por}\n`;
   }
-  
+
   b += `Comandado por: ${ticketData.comandado_por}\n`;
   b += `Fecha: ${ticketData.fecha}\n`;
   b += SEPARATOR;
@@ -1145,7 +1158,7 @@ async function cancelledOrderWindows(printer, ticketData, translations) {
   }
 }
 
-  async function designOrderSlipWindows(printer, ticketData, translations) {
+async function designOrderSlipWindows(printer, ticketData, translations) {
   console.log("DATA COMANDA: ", ticketData);
 
   // COMANDOS ESC/POS PREDEFINIDOS
@@ -1153,10 +1166,10 @@ async function cancelledOrderWindows(printer, ticketData, translations) {
   const GS = "\x1D";
   const JUSTIFY_CENTER = ESC + "a\x01";
   const JUSTIFY_LEFT = ESC + "a\x00";
-  const TEXT_BOLD_LARGE = ESC + "!\x30"; 
+  const TEXT_BOLD_LARGE = ESC + "!\x30";
   const TEXT_NORMAL = ESC + "!\x00";
   const TEXT_BOLD = ESC + "!\x08";
-  const CUT_PAPER = GS + "V\x41\x00"; 
+  const CUT_PAPER = GS + "V\x41\x00";
 
   const SEPARATOR = "=".repeat(48) + "\n";
   const LINE_SEPARATOR = "-".repeat(48) + "\n";
@@ -1179,7 +1192,7 @@ async function cancelledOrderWindows(printer, ticketData, translations) {
   }
 
   // --- INICIO DE CONSTRUCCIÓN DEL BUFFER ---
-  let b = ""; 
+  let b = "";
 
   // Encabezado
   b += ESC + "d\x01";
@@ -1206,7 +1219,10 @@ async function cancelledOrderWindows(printer, ticketData, translations) {
   for (const pedido of ticketData.pedidos) {
     const cantidadStr = `${pedido.cantidad}`.padEnd(8);
     const indent = " ".repeat(8);
-    const lineasProducto = splitText(pedido.presentacion || pedido.producto, 40);
+    const lineasProducto = splitText(
+      pedido.presentacion || pedido.producto,
+      40,
+    );
 
     for (let i = 0; i < lineasProducto.length; i++) {
       const esPrimeraLinea = i === 0;
