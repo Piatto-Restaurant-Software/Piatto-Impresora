@@ -406,6 +406,9 @@ async function printTicketWindows(
       case "AnulacionPedido":
         await cancelledOrderWindows(printer, ticketData, translations);
         break;
+      case "IngresosEgresos":
+        await printIncomeExpenseWindows(printer, ticketData, translations);
+        break;
       default:
         await designTestTicket(printer, ticketData, translations);
     }
@@ -1268,6 +1271,80 @@ async function designOrderSlipWindows(printer, ticketData, translations) {
     console.log("¡Impresión enviada con éxito!");
   } catch (err) {
     console.error("Error al enviar al buffer de la impresora:", err);
+  }
+}
+
+async function printIncomeExpenseWindows(printer, ticketData) {
+  console.time("printIncomeExpenseWindows");
+
+  // --- CONSTANTES ESC/POS ---
+  const ESC = "\x1B";
+  const GS = "\x1D";
+  const JUSTIFY_CENTER = ESC + "a\x01";
+  const JUSTIFY_LEFT = ESC + "a\x00";
+  const TEXT_BOLD_LARGE = ESC + "!\x30"; // Doble alto + Doble ancho + Negrita
+  const TEXT_NORMAL = ESC + "!\x00";
+  const CUT_PAPER = GS + "V\x41\x00";
+
+  const SEPARATOR = "=".repeat(48) + "\n";
+  const LINE_SEPARATOR = "-".repeat(48) + "\n";
+  const STAR_SEPARATOR = "*".repeat(48) + "\n";
+
+  // --- TRADUCCIONES DINÁMICAS ---
+  const labels = ticketData.labels ?? {};
+  const title = labels["titulo"] ?? "TICKET";
+  const fechaLab = labels["fecha"] ?? "Fecha";
+  const usuarioLab = labels["usuario_registro"] ?? "Usuario";
+  const cajaLab = labels["caja"] ?? "Caja";
+  const entregoLab = labels["entrego_a"] ?? "Entregado a";
+  const montoLab = labels["monto"] ?? "Monto";
+  const motivoLab = labels["motivo"] ?? "Motivo";
+  const firmaLab = labels["firma"] ?? "Firma";
+  const nombreUsuario =
+    `${ticketData.usuario?.nombre ?? ""} ${ticketData.usuario?.apellidos ?? ""}`.trim();
+
+  // --- INICIO DEL BUFFER ---
+  let b = "";
+
+  // Encabezado llamativo
+  b += ESC + "d\x01"; // Feed 1
+  b += JUSTIFY_CENTER;
+  b += STAR_SEPARATOR;
+  b += TEXT_BOLD_LARGE + `${title}\n` + TEXT_NORMAL;
+  b += SEPARATOR;
+
+  // Información general
+  b += JUSTIFY_LEFT;
+  b += `${fechaLab}: ${ticketData.fecha_string}\n`;
+  b += `${usuarioLab}: ${nombreUsuario}\n`;
+  b += `${cajaLab}: ${ticketData.movimiento_caja.caja.nombre}\n`;
+
+  b += LINE_SEPARATOR;
+
+  // Información especifica de ingreso/gasto
+  b += JUSTIFY_LEFT;
+  b += `${entregoLab}: ${ticketData.entrego_a}\n`;
+  b += `${montoLab}: ${ticketData.simbolo_moneda}${ticketData.monto.toFixed(2)}\n`;
+  b += `${motivoLab}: ${ticketData.motivo}\n`;
+
+  b += SEPARATOR;
+
+  // Espacio para firma
+  b += "\n\n\n\n";
+  b += JUSTIFY_CENTER;
+  b += `______________________________\n`;
+  b += `        ${firmaLab}        \n`;
+
+  // Cierre y Corte
+  b += ESC + "d\x06"; // Feed 6
+  b += CUT_PAPER;
+
+  // --- ENVÍO ÚNICO ---
+  try {
+    await printer.write(b);
+    console.timeEnd("Cancelacion_Speed");
+  } catch (err) {
+    console.error("Error al imprimir orden cancelada:", err);
   }
 }
 
