@@ -11,7 +11,12 @@ const {
 const { Printer, InMemory, Align, Drawer } = require("escpos-buffer");
 const { ImageManager } = require("escpos-buffer-image");
 
-const { GUATEMALA, HONDURAS } = require("../constants/pais-constant");
+const {
+  GUATEMALA,
+  HONDURAS,
+  PANAMA,
+  EL_SALVADOR,
+} = require("../constants/pais-constant");
 
 // Variables para almacenar las rutas (se establecerán desde main.js)
 let outputDir;
@@ -21,6 +26,61 @@ let outputPath;
 function setAppDataPath(userDataPath) {
   outputDir = userDataPath;
   outputPath = path.join(outputDir, "ticket_output.bin");
+}
+
+/**
+ * Genera una imagen QR optimizada para impresoras térmicas (Anti-bleed).
+ * evita que la tinta térmica se expanda.
+ */
+function generateAntiBleedQR(qrData, targetSize = 350) {
+  const QRCode = require("qrcode");
+  const { Image } = require("escpos-buffer");
+
+  const qrMatrix = QRCode.create(qrData, { errorCorrectionLevel: "L" });
+  const moduleCount = qrMatrix.modules.size;
+  const modules = qrMatrix.modules.data; // Array 1D (1 oscuro, 0 claro)
+
+  let scale = Math.floor(targetSize / moduleCount);
+  if (scale < 3) scale = 3;
+  if (scale > 8) scale = 8;
+
+  const paddingModules = 4;
+  const totalModules = moduleCount + paddingModules * 2;
+  const finalSize = totalModules * scale;
+
+  const extraWidth = finalSize % 8 === 0 ? 0 : 8 - (finalSize % 8);
+  const printWidth = finalSize + extraWidth;
+
+  const buf = Buffer.alloc(printWidth * finalSize * 4, 255);
+
+  for (let y = 0; y < moduleCount; y++) {
+    for (let x = 0; x < moduleCount; x++) {
+      if (modules[y * moduleCount + x]) {
+        // ANTI-BLEED LOGIC
+        const shave = scale > 3 ? 1 : 0;
+
+        const startX = (x + paddingModules) * scale;
+        const startY = (y + paddingModules) * scale;
+        const endX = (x + paddingModules + 1) * scale - 1 - shave;
+        const endY = (y + paddingModules + 1) * scale - 1 - shave;
+
+        for (let drawY = startY; drawY <= endY; drawY++) {
+          for (let drawX = startX; drawX <= endX; drawX++) {
+            const idx = (drawY * printWidth + drawX) * 4;
+            buf[idx] = 0;
+            buf[idx + 1] = 0;
+            buf[idx + 2] = 0;
+          }
+        }
+      }
+    }
+  }
+
+  return new Image({
+    width: printWidth,
+    height: finalSize,
+    data: buf,
+  });
 }
 
 /**
@@ -697,6 +757,8 @@ async function designFullTicket(
     await printer.write(`${translations.ccf}\n`);
   } else if (billingData != null && billingData.id_pais == GUATEMALA) {
     await printer.write(`FACTURA\n`);
+  } else if (billingData != null && billingData.id_pais == PANAMA) {
+    await printer.write(`Comprobante Auxiliar de Factura Electronica\n`);
   } else {
     await printer.write(`${translations.full_ticket}\n`);
   }
@@ -765,6 +827,21 @@ async function designFullTicket(
     await printer.write(
       `${cliente.tipo_documento}: ${cliente.numero_documento}\n`,
     );
+  }
+
+  //* Documento cliente, direccion telefono y correo solo en PTY
+  if (
+    billingData != null &&
+    billingData.id_pais == PANAMA &&
+    ticketData.cuenta_venta.cliente != null
+  ) {
+    const cliente = ticketData.cuenta_venta.cliente;
+    await printer.write(
+      `${cliente.tipo_documento}: ${cliente.numero_documento}\n`,
+    );
+    await printer.write(`Direccion: ${cliente.direccion}\n`);
+    await printer.write(`Telefono: ${cliente.telefono}\n`);
+    await printer.write(`Correo: ${cliente.email}\n`);
   }
 
   if (
@@ -912,6 +989,27 @@ async function designFullTicket(
     );
   }
 
+  //* ======================================================
+  //* ============== Información de FE PY =================
+  //* ======================================================
+  if (billingData != null && billingData.id_pais == PANAMA) {
+    await printer.setAlignment(Align.Left);
+    await printer.write(`${SEPARATOR}\n`);
+    await printer.write(
+      `Autorizacion de uso:\n${billingData.sello_recepcion}\n\n`,
+    );
+    await printer.write(
+      `Fecha de autorizacion: ${billingData.fecha_emision}\n\n`,
+    );
+    await printer.write(
+      `Consulte en:\nhttps://dgi-fep.mef.gob.pa/Consultas\n\n`,
+    );
+    await printer.write(
+      `Usando el CUFE:\n${billingData.id_factura_infile}\n\n`,
+    );
+    await printer.write(`O escaneando el codigo QR:\n\n`);
+  }
+
   //Imprimir QR con pdf documento
   if (
     billingData != null &&
@@ -919,9 +1017,20 @@ async function designFullTicket(
     (billingData.pdf_path != null || billingData.pdf_path != undefined)
   ) {
     await printer.setAlignment(Align.Center);
-    await printer.write(`${SEPARATOR}\n`);
-    await printer.write(`${translations.download_document}\n`);
-    await printer.qrcode(billingData.pdf_path.toString(), 5);
+    if (billingData.id_pais == EL_SALVADOR) {
+      await printer.write(`${SEPARATOR}\n`);
+      await printer.write(`${translations.download_document}\n`);
+    }
+
+    const urlString = billingData.pdf_path.toString();
+    const len = urlString.length;
+
+    if (len > 150) {
+      const qrImage = generateAntiBleedQR(urlString, 350);
+      await printer.draw(qrImage);
+    } else {
+      await printer.qrcode(urlString, 5);
+    }
   }
 
   // Pie del ticket
