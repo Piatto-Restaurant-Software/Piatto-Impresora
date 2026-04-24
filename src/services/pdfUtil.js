@@ -758,7 +758,10 @@ async function designFullTicket(
   } else if (billingData != null && billingData.id_pais == GUATEMALA) {
     await printer.write(`FACTURA\n`);
   } else if (billingData != null && billingData.id_pais == PANAMA) {
-    await printer.write(`Comprobante Auxiliar de Factura Electronica\n`);
+    await printer.write("\x1B\x21\x08"); // texto negrita
+    await printer.write(`DGI\n`);
+    await printer.write(`COMPROBANTE AUXILIAR DE FACTURA ELECTRONICA\n`);
+    await printer.write(`FACTURA DE OPERACION INTERNA\n`);
   } else {
     await printer.write(`${translations.full_ticket}\n`);
   }
@@ -779,7 +782,22 @@ async function designFullTicket(
   }
   await printer.write(`${ticketData.local.telefono}\n`);
   if (ticketData.local.nit) {
-    await printer.write(`NIT: ${ticketData.local.nit}\n`);
+    //* Informacion del documento del dominio PTY
+    if (
+      billingData != null &&
+      billingData.id_pais == PANAMA &&
+      billingData.id_factura_infile != null
+    ) {
+      let cufeData = extractCUFEData(billingData.id_factura_infile ?? "");
+      await printer.write(
+        `RUC:${cufeData["rucEmisor"]}  DV:${cufeData["dvRuc"]}\n`,
+      );
+      await printer.write(
+        `Sucursal:${cufeData["codigoSucursal"]}  Caja:${cufeData["puntoFacturacion"]}\n`,
+      );
+    } else {
+      await printer.write(`NIT: ${ticketData.local.nit}\n`);
+    }
   }
   await printer.write(`Numero: ${ticketData.numero_comprobante}\n`);
   await printer.write(`${SEPARATOR}\n`);
@@ -837,11 +855,12 @@ async function designFullTicket(
   ) {
     const cliente = ticketData.cuenta_venta.cliente;
     await printer.write(
-      `${cliente.tipo_documento}: ${cliente.numero_documento}\n`,
+      `${cliente.tipo_documento}:${cliente.numero_documento} ${cliente.documento_extra != null ? `DV:${cliente.documento_extra}` : ""}\n`,
     );
     await printer.write(`Direccion: ${cliente.direccion}\n`);
     await printer.write(`Telefono: ${cliente.telefono}\n`);
     await printer.write(`Correo: ${cliente.email}\n`);
+    await printer.write(`${SEPARATOR}\n`);
   }
 
   if (
@@ -996,13 +1015,13 @@ async function designFullTicket(
     await printer.setAlignment(Align.Left);
     await printer.write(`${SEPARATOR}\n`);
     await printer.write(
-      `Autorizacion de uso:\n${billingData.sello_recepcion}\n\n`,
+      `Protocolo de autorizacion:\n${billingData.sello_recepcion}\n\n`,
     );
     await printer.write(
       `Fecha de autorizacion: ${billingData.fecha_emision}\n\n`,
     );
     await printer.write(
-      `Consulte en:\nhttps://dgi-fep.mef.gob.pa/Consultas\n\n`,
+      `Consulte en:\nhttps://dgi-fep.mef.gob.pa/Consultas/FacturasPorCUFE\n\n`,
     );
     await printer.write(
       `Usando el CUFE:\n${billingData.id_factura_infile}\n\n`,
@@ -1031,6 +1050,15 @@ async function designFullTicket(
     } else {
       await printer.qrcode(urlString, 5);
     }
+  }
+
+  //* ======================================================
+  //* =========== Información de FE Infile PY ==============
+  //* ======================================================
+  if (billingData != null && billingData.id_pais == PANAMA) {
+    await printer.write(
+      `Documento validado por INFILE, S.A. con RUC 155709791-2-2021, es Proveedor Autorizado Calificado, Resolucion No.201-3670 de 29/05/2022\n`,
+    );
   }
 
   // Pie del ticket
@@ -1455,6 +1483,39 @@ async function printIncomeExpenseWindows(printer, ticketData) {
   } catch (err) {
     console.error("Error al imprimir orden cancelada:", err);
   }
+}
+
+function extractCUFEData(cufe) {
+  const rucStart = 5;
+  const rucEnd = 25;
+  const rawRuc = cufe.substring(rucStart, rucEnd);
+
+  const dvStart = 26;
+  const dvEnd = 28;
+  const rawDv = cufe.substring(dvStart, dvEnd);
+
+  let rawRucSinCeros = rawRuc.replace(/^0+/, "");
+  if (rawRucSinCeros === "") {
+    rawRucSinCeros = "0";
+  }
+
+  const codigoSucursalStart = 28;
+  const codigoSucursalEnd = 32;
+  const codigoSucursal = cufe.substring(codigoSucursalStart, codigoSucursalEnd);
+
+  const puntoFacturacionStart = 50;
+  const puntoFacturacionEnd = 53;
+  const puntoFacturacion = cufe.substring(
+    puntoFacturacionStart,
+    puntoFacturacionEnd,
+  );
+
+  return {
+    rucEmisor: rawRucSinCeros,
+    dvRuc: rawDv,
+    codigoSucursal: codigoSucursal,
+    puntoFacturacion: puntoFacturacion,
+  };
 }
 
 module.exports = {
