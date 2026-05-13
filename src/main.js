@@ -417,7 +417,6 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
   try {
     const { data, printerName, ticketType } = req.body;
 
-    console.log("DATA RECIBIDA DESDE POST: ", data);
     console.log("TIPO DE IMPRESION: ", ticketType);
     console.log("NOMBRE DE IMPRESORA: ", printerName);
 
@@ -474,25 +473,18 @@ expressApp.post("/api/v1/impresion/test", async (req, res) => {
 
 // --- Funciones auxiliares ---
 async function processBatchPrint(data, translations, ticketType) {
-  const results = { success: [], errors: [] };
-
-  for (const comanda of data) {
+  // Usamos Promise.all para procesar todas las comandas en paralelo
+  const promises = data.map(async (comanda) => {
     try {
+      // 1. Validaciones síncronas rápidas
       if (!comanda.impresora?.nombre) {
-        throw new Error(
-          `Comanda ${comanda.numero_comanda} sin impresora definida`
-        );
+        return { 
+          success: false, 
+          error: `Comanda ${comanda.numero_comanda || 'S/N'} sin impresora definida` 
+        };
       }
 
-      const isConnected = await new PrinterService().testPrinterConnection(
-        comanda.impresora.nombre
-      );
-      if (!isConnected) {
-        throw new Error(
-          `Impresora ${comanda.impresora.nombre} no está conectada`
-        );
-      }
-
+      // 2. Encolamiento asíncrono
       printQueue.addJob(async () => {
         await printTicket(
           comanda,
@@ -502,13 +494,28 @@ async function processBatchPrint(data, translations, ticketType) {
         );
       }, ticketType);
 
-      results.success.push(comanda.numero_comanda);
+      return { success: true, id: comanda.numero_comanda };
     } catch (error) {
-      results.errors.push(`${comanda.numero_comanda}: ${error.message}`);
+      return { 
+        success: false, 
+        id: comanda.numero_comanda, 
+        error: error.message 
+      };
     }
-  }
+  });
 
-  return results;
+  // Esperamos a que todas las promesas de "encolamiento" se resuelvan
+  const resolutions = await Promise.all(promises);
+
+  // Formateamos el resultado final para el reporte
+  return resolutions.reduce((acc, curr) => {
+    if (curr.success) {
+      acc.success.push(curr.id);
+    } else {
+      acc.errors.push(`${curr.id || 'Error'}: ${curr.error}`);
+    }
+    return acc;
+  }, { success: [], errors: [] });
 }
 
 async function processSinglePrint(
@@ -519,7 +526,7 @@ async function processSinglePrint(
   res,
   abrirGavetaConfig
 ) {
-  const isConnected = await new PrinterService().testPrinterConnection(
+  /* const isConnected = await new PrinterService().testPrinterConnection(
     printerName
   );
   if (!isConnected) {
@@ -527,7 +534,7 @@ async function processSinglePrint(
       success: false,
       message: "La impresora no está conectada o activa.",
     });
-  }
+  } */
 
   printQueue.addJob(async () => {
     await printTicket(
