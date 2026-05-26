@@ -149,14 +149,20 @@ async function printTicketUnix(
     const tempFile = path.join(os.tmpdir(), `ticket_${Date.now()}.prn`);
     fs.writeFileSync(tempFile, connection.buffer());
 
-    // Comando de impresión genérico para Unix
-    exec(`lp -d "${printerName}" "${tempFile}"`, (error) => {
-      fs.unlinkSync(tempFile); // Limpiar archivo temporal
-      if (error) {
-        console.error("Error al imprimir en Unix:", error);
-        throw new Error(`No se pudo imprimir en ${printerName}`);
-      }
-      console.log(`Ticket enviado a ${printerName}`);
+    // Requerimos execFile de child_process al inicio del archivo si no está (o lo usamos directamente si ya destructuramos exec)
+    // Para no romper la importación superior, llamamos a child_process.execFile
+    const { execFile } = require('child_process');
+
+    await new Promise((resolve, reject) => {
+      execFile('lp', ['-d', printerName, tempFile], (error, stdout, stderr) => {
+        try { fs.unlinkSync(tempFile); } catch (e) {} // Limpiar archivo temporal
+        if (error) {
+          console.error("Error al imprimir en Unix:", error, stderr);
+          return reject(new Error(`No se pudo imprimir en ${printerName}: ${error.message}`));
+        }
+        console.log(`Ticket enviado a ${printerName}`);
+        resolve();
+      });
     });
   } catch (error) {
     console.error("Error en printTicketUnix:", error);
@@ -477,19 +483,20 @@ async function printTicketWindows(
     const tempFile = path.join(os.tmpdir(), `ticket_${Date.now()}.prn`);
     fs.writeFileSync(tempFile, connection.buffer());
 
-    // Comando de impresión genérico para Windows
-    const printCommand = `copy /B "${tempFile}" "\\\\127.0.0.1\\${printerName.replace(
-      / /g,
-      "",
-    )}"`;
+    // Comando de impresión nativo ultrarrápido usando winspool.drv (C# compilado)
+    const printExe = path.join(__dirname, 'print-raw.exe');
+    const { execFile } = require('child_process');
 
-    exec(printCommand, (error) => {
-      fs.unlinkSync(tempFile); // Limpiar archivo temporal
-      if (error) {
-        console.error("Error al imprimir en Windows:", error);
-        throw new Error(`No se pudo imprimir en ${printerName}`);
-      }
-      console.log(`Ticket enviado a ${printerName}`);
+    await new Promise((resolve, reject) => {
+      execFile(printExe, [printerName, tempFile], (error, stdout, stderr) => {
+        try { fs.unlinkSync(tempFile); } catch (e) {} // Limpiar archivo temporal
+        if (error) {
+          console.error("Error al imprimir en Windows:", error, stderr);
+          return reject(new Error(`No se pudo imprimir en ${printerName}: ${error.message}`));
+        }
+        console.log(`Ticket enviado a ${printerName}`);
+        resolve();
+      });
     });
   } catch (error) {
     console.error("Error en printTicketWindows:", error);

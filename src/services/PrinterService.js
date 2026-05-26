@@ -102,7 +102,7 @@ class PrinterService {
 
             try {
               const result = JSON.parse(stdout);
-              const printers = result.Printers || [];
+              const printers = Array.isArray(result.Printers) ? result.Printers : (result.Printers ? [result.Printers] : []);
               const defaultPrinter = result.DefaultPrinter || null;
 
               const printerList = await Promise.all(

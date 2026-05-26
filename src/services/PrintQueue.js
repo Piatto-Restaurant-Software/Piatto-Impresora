@@ -43,11 +43,11 @@ class PrintQueue {
       console.error("Error al procesar el trabajo de impresión:", error);
     }
 
-    // Espera 2 segundos antes de procesar el siguiente trabajo
+    // Espera 50 ms antes de procesar el siguiente trabajo para ser casi instantáneo
     setTimeout(() => {
       this.isProcessing = false;
       this.processQueue(); // Procesa el siguiente trabajo
-    }, 2000);
+    }, 50);
   }
 }
 
