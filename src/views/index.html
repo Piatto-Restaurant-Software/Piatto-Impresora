@@ -22,6 +22,9 @@
         <div class="col-auto logo-container">
           <img id="logo-image" alt="Logo" class="logo-image" />
         </div>
+        <div class="col-auto version-container">
+          <span class="badge bg-secondary">v1.0.10</span>
+        </div>
         <div class="col-auto language-container">
           <div class="dropdown">
             <button
@@ -73,6 +76,11 @@
       <div class="row content-container">
         <div class="col-12 text-start my-3">
           <h3 id="main-header"></h3>
+          <div class="col-12 text-end mb-3">
+            <button id="refresh-button" class="btn btn-outline-primary">
+              🔄 Actualizar impresoras
+            </button>
+          </div>
           <p id="header-description"></p>
         </div>
         <div class="col-12 printer-list">
@@ -84,6 +92,27 @@
     </div>
 
     <script>
+      document
+        .getElementById("refresh-button")
+        .addEventListener("click", async () => {
+          updatePrinterUI([]);
+          try {
+            const response = await fetch(
+              `http://${localIP}:3001/api/v1/impresoras/actualizar`
+            );
+            const result = await response.json();
+            if (result.success) {
+              printers = result.printers;
+              updatePrinterUI(printers);
+            } else {
+              alert("No se pudo actualizar el estado de las impresoras.");
+            }
+          } catch (err) {
+            alert("Error al actualizar impresoras.");
+            console.error(err);
+          }
+        });
+
       document.getElementById(
         "dynamic-css"
       ).href = `${window.paths.assetsPath}/style.css`;
@@ -94,12 +123,12 @@
       let printers = []; // Almacenaremos los datos de las impresoras aquí
 
       async function loadTranslations() {
-        console.log("Idioma actual:", currentLanguage);
-        translations = await window.electron.ipcRenderer.invoke(
+        const allTranslations = await window.electron.ipcRenderer.invoke(
           "get-translations",
           currentLanguage
         );
-        console.log("Traducciones:", translations);
+        translations = allTranslations.interfaz || {}; // <<< CORRECCIÓN AQUÍ
+        console.log("Traducciones cargadas:", translations);
       }
 
       function changeLanguage(language) {
@@ -115,12 +144,12 @@
       }
 
       function updateInterface() {
-        console.log("Actualizo título con:", translations.interfaz.title);
-        document.title = translations.interfaz.title;
+        console.log("Actualizo título con:", translations.title);
+        document.title = translations.title;
         document.getElementById("main-header").textContent =
-          translations.interfaz.header.main;
+          translations.header.main;
         document.getElementById("header-description").textContent =
-          translations.interfaz.header.description;
+          translations.header.description;
       }
 
       async function requestServerInfo() {
@@ -141,12 +170,29 @@
 
       function initializeWebSocket() {
         const ws = new WebSocket(`ws://${localIP}:${port}`);
-        ws.onopen = () => console.log("Conectado al WebSocket del servidor");
-        ws.onmessage = (event) => {
-          printers = JSON.parse(event.data); // Almacena las impresoras en la variable global
-          console.log("Impresoras en html:", printers);
-          updatePrinterUI(printers); // Muestra las impresoras en el idioma actual
+
+        ws.onopen = async () => {
+          console.log("Conectado al WebSocket del servidor");
+
+          // Asegurar que traducciones estén cargadas antes de mostrar el spinner
+          if (!translations.status || !translations.buttons) {
+            await loadTranslations();
+          }
+
+          updatePrinterUI([]); // Mostrar el spinner después de cargar traducciones
         };
+
+        ws.onmessage = async (event) => {
+          printers = JSON.parse(event.data);
+
+          if (!translations.status || !translations.buttons) {
+            await loadTranslations();
+          }
+
+          console.log("Impresoras en html:", printers);
+          updatePrinterUI(printers);
+        };
+
         ws.onerror = (error) => console.error("Error en WebSocket:", error);
         ws.onclose = () => console.log("Conexión WebSocket cerrada");
       }
@@ -159,7 +205,7 @@
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Accept-Language": currentLanguage, 
+                "Accept-Language": currentLanguage,
               },
               body: JSON.stringify({ printerName }),
             }
@@ -167,12 +213,12 @@
 
           const result = await response.json();
           if (result.success) {
-            alert(translations.interfaz.alerts.test_success);
+            alert(translations.alerts.test_success);
           } else {
-            alert(translations.interfaz.alerts.test_error);
+            alert(translations.alerts.test_error);
           }
         } catch (error) {
-          alert(translations.interfaz.alerts.test_error);
+          alert(translations.alerts.test_error);
         }
       }
 
@@ -180,58 +226,82 @@
         const container = document.getElementById("printer-container");
         container.innerHTML = "";
 
+        if (!translations.status || !translations.buttons) {
+          showLoadingSpinner();
+          return;
+        }
+
+        if (!printers || printers.length === 0) {
+          container.innerHTML = `
+      <div class="col-12 text-center my-5">
+        <div class="spinner-border text-light" role="status"></div>
+        <p class="mt-3">${
+          translations.loading?.title || "Cargando impresoras..."
+        }</p>
+      </div>
+    `;
+          return;
+        }
+
         printers.forEach((printer) => {
           const printerDiv = document.createElement("div");
           printerDiv.className = "col-sm-6 col-md-4 col-lg-4 mb-4";
 
-          let statusClass = "";
-          let statusText = "";
-          switch (printer.status) {
-            case "Desconectada":
-              statusClass = "badge-inactiva";
-              statusText = translations.interfaz.status.disconnected;
-              break;
-            case "Conectada":
-              statusClass = "badge-conectada";
-              statusText = translations.interfaz.status.connected;
-              break;
-            case "Inactiva":
-              statusClass = "badge-inactiva";
-              statusText = translations.interfaz.status.inactive;
-              break;
-            case "Imprimiendo":
-              statusClass = "badge-imprimiendo";
-              statusText = translations.interfaz.status.printing;
-              break;
-            case "Error":
-              statusClass = "badge-error";
-              statusText = translations.interfaz.status.error;
-              break;
+          console.log("Impresora:", printer);
+
+          // Verificación más robusta del estado
+          let statusClass = "badge-inactiva";
+          let statusText = translations.status.disconnected;
+
+          if (printer.status === "Imprimiendo") {
+            statusClass = "badge-imprimiendo";
+            statusText = translations.status.printing;
+          } else if (printer.status === "Conectada") {
+            statusClass = printer.default
+              ? "badge-conectada-primary"
+              : "badge-conectada";
+            statusText = translations.status.connected;
+          } else if (printer.status === "Error") {
+            statusClass = "badge-error";
+            statusText = translations.status.error;
           }
 
           printerDiv.innerHTML = `
-            <div class="card bg-dark text-white shadow">
-              <div class="card-body text-center">
-                <div class="badge-container">
-                  <span class="badge ${statusClass}"><span class="dot"></span> ${statusText}</span>
-                </div>
-                <img src="${
-                  window.paths.assetsPath
-                }/impresora.png" alt="Impresora" class="printer-image mb-3">
-                <h5 class="card-title mt-2">${(printer.description != undefined) ? printer.description: printer.name}</h5>
-                <p class="card-text">${
-                  printer.default
-                    ? translations.interfaz.buttons.default
-                    : translations.interfaz.buttons.non_default
-                }</p>
-                <button class="btn" onclick="testPrinter('${printer.name}')" 
-
-              >${translations.interfaz.buttons.test_print}</button>
-              </div>
-            </div>
-          `;
+      <div class="card bg-dark text-white shadow printer-card">
+        <div class="card-body text-center">
+          <div class="badge-container">
+            <span class="badge ${statusClass}">
+              <span class="dot"></span> ${statusText}
+              ${printer.default ? ` (${translations.buttons.default})` : ""}
+            </span>
+          </div>
+          <img src="${
+            window.paths.assetsPath
+          }/impresora.png" alt="Impresora" class="printer-image mb-3">
+          <h5 class="card-title mt-2">${printer.name}</h5>
+          <button class="btn btn-test" onclick="testPrinter('${printer.name.replace(
+            /'/g,
+            "\\'"
+          )}')">
+            ${translations.buttons.test_print}
+          </button>
+        </div>
+      </div>
+    `;
           container.appendChild(printerDiv);
         });
+      }
+
+      function showLoadingSpinner() {
+        const container = document.getElementById("printer-container");
+        container.innerHTML = `
+    <div class="col-12 text-center my-5">
+      <div class="spinner-border text-light" role="status"></div>
+      <p class="mt-3">${
+        translations.loading?.title || "Cargando impresoras..."
+      }</p>
+    </div>
+  `;
       }
 
       window.onload = () => {

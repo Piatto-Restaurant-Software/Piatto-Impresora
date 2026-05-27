@@ -199,3 +199,8 @@ body {
   min-width: 40%; /* Tamaño de la bandera */
   height: auto;
 }
+
+.version-container {
+  margin-left: 15px;
+  margin-right: auto;
+}

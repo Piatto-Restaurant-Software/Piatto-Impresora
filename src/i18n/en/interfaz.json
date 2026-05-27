@@ -19,5 +19,10 @@
   "alerts": {
     "test_success": "Test print completed successfully.",
     "test_error": "Error performing test print."
+  },
+  "loading": {
+    "title": "Cargando impresoras...",
+    "no_printers": "No se encontraron impresoras.",
+    "check_connection": "Verifica la conexión o los cables USB."
   }
 }

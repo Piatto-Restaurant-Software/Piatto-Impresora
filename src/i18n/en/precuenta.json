@@ -5,6 +5,7 @@
   "thank_you": "Thank you for your purchase",
   "come_again": "Come again soon!",
   "table": "Table",
+  "room": "Room",
   "qty": "Qty",
   "product": "Product",
   "unit_price": "U.P.",
@@ -18,6 +19,7 @@
   "num_installments": "Number of installments",
   "discount": "Discount",
   "full_ticket": "Ticket",
+  "ccf": "Tax credit receipt",
   "order_slip": "Order Slip",
   "waiter": "Waiter",
   "area": "Area",
@@ -34,5 +36,11 @@
   "card_total": "Total Card",
   "tranfers_total": "Total Transfer",
   "general_cash_total": "General Cash Total",
-  "total_cash": "Total Cash"
+  "total_cash": "Total Cash",
+  "cancelled_order": "ORDER CANCELLED",
+  "change": "Change",
+  "download_document": "Download your document at this link",
+  "codigo_generacion": "Generation code",
+  "numero_control": "Control number",
+  "sello_recepcion": "Reception seal"
 }

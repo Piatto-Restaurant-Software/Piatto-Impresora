@@ -5,6 +5,7 @@
   "thank_you": "Gracias por su compra",
   "come_again": "¡Vuelva pronto!",
   "table": "Mesa",
+  "room": "Salon",
   "qty": "Cant.",
   "product": "Producto",
   "unit_price": "P.U.",
@@ -18,6 +19,7 @@
   "num_installments": "Número de cuotas",
   "discount": "Descuento",
   "full_ticket": "Ticket",
+  "ccf": "Comprobante de credito  fiscal",
   "order_slip": "Comanda",
   "waiter": "Mesero",
   "area": "Area",
@@ -34,5 +36,11 @@
   "card_total": "Total Tarjeta",
   "tranfers_total": "Total Transferencia",
   "general_cash_total": "Total General Efectivo",
-  "total_caja": "Total Caja"
+  "total_caja": "Total Caja",
+  "cancelled_order": "PEDIDO ANULADO",
+  "change": "Vuelto",
+  "download_document": "Descarga tu documento en este enlace",
+  "codigo_generacion": "Codigo generacion",
+  "numero_control": "Numero control",
+  "sello_recepcion": "Sello recepcion"
 }

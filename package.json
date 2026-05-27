@@ -5,6 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
+    "debug": "electron --inspect=9229 .",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win",
     "dist:mac": "electron-builder --mac",
@@ -52,6 +53,7 @@
     "cors": "^2.8.5",
     "escpos": "^3.0.0-alpha.6",
     "escpos-buffer": "^4.1.0",
+    "escpos-buffer-image": "^1.1.0",
     "escpos-usb": "^3.0.0-alpha.4",
     "express": "^4.18.2",
     "fs": "^0.0.1-security",
