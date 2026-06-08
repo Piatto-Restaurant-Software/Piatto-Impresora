@@ -151,14 +151,20 @@ async function printTicketUnix(
 
     // Requerimos execFile de child_process al inicio del archivo si no está (o lo usamos directamente si ya destructuramos exec)
     // Para no romper la importación superior, llamamos a child_process.execFile
-    const { execFile } = require('child_process');
+    const { execFile } = require("child_process");
 
     await new Promise((resolve, reject) => {
-      execFile('lp', ['-d', printerName, tempFile], (error, stdout, stderr) => {
-        try { fs.unlinkSync(tempFile); } catch (e) {} // Limpiar archivo temporal
+      execFile("lp", ["-d", printerName, tempFile], (error, stdout, stderr) => {
+        try {
+          fs.unlinkSync(tempFile);
+        } catch (e) {} // Limpiar archivo temporal
         if (error) {
           console.error("Error al imprimir en Unix:", error, stderr);
-          return reject(new Error(`No se pudo imprimir en ${printerName}: ${error.message}`));
+          return reject(
+            new Error(
+              `No se pudo imprimir en ${printerName}: ${error.message}`,
+            ),
+          );
         }
         console.log(`Ticket enviado a ${printerName}`);
         resolve();
@@ -484,15 +490,21 @@ async function printTicketWindows(
     fs.writeFileSync(tempFile, connection.buffer());
 
     // Comando de impresión nativo ultrarrápido usando winspool.drv (C# compilado)
-    const printExe = path.join(__dirname, 'print-raw.exe');
-    const { execFile } = require('child_process');
+    const printExe = path.join(__dirname, "print-raw.exe");
+    const { execFile } = require("child_process");
 
     await new Promise((resolve, reject) => {
       execFile(printExe, [printerName, tempFile], (error, stdout, stderr) => {
-        try { fs.unlinkSync(tempFile); } catch (e) {} // Limpiar archivo temporal
+        try {
+          fs.unlinkSync(tempFile);
+        } catch (e) {} // Limpiar archivo temporal
         if (error) {
           console.error("Error al imprimir en Windows:", error, stderr);
-          return reject(new Error(`No se pudo imprimir en ${printerName}: ${error.message}`));
+          return reject(
+            new Error(
+              `No se pudo imprimir en ${printerName}: ${error.message}`,
+            ),
+          );
         }
         console.log(`Ticket enviado a ${printerName}`);
         resolve();
@@ -762,7 +774,10 @@ async function designFullTicket(
     billingData.tipo_factura === COMPROBANTE_CREDITO_FISCAL
   ) {
     await printer.write(`${translations.ccf}\n`);
-  } else if (billingData != null && billingData.id_pais == GUATEMALA) {
+  } else if (
+    (billingData != null && billingData.id_pais == GUATEMALA) ||
+    (billingData != null && billingData.id_pais == HONDURAS)
+  ) {
     await printer.write(`FACTURA\n`);
   } else if (billingData != null && billingData.id_pais == PANAMA) {
     await printer.write("\x1B\x21\x08"); // texto negrita
@@ -782,12 +797,25 @@ async function designFullTicket(
     // Razon social solo en GT
     await printer.write(`${ticketData.local.razon_social}\n`);
   }
-  await printer.write(`${ticketData.local.nombre}\n`);
-  if (billingData != null && billingData.id_pais == GUATEMALA) {
-    // direccion solo en GT
+  if (billingData != null && billingData.id_pais == PANAMA) {
+    await printer.write(`${ticketData.local.razon_social}\n`);
+  } else {
+    await printer.write(`${ticketData.local.nombre}\n`);
+  }
+
+  if (
+    (billingData != null && billingData.id_pais == GUATEMALA) ||
+    (billingData != null && billingData.id_pais == HONDURAS)
+  ) {
+    // direccion solo en GT y HN
     await printer.write(`${ticketData.local.direccion}\n`);
   }
-  await printer.write(`${ticketData.local.telefono}\n`);
+  if (billingData != null && billingData.id_pais == PANAMA) {
+    // Razon social y direccion solo en PTY
+    await printer.write(`${ticketData.local.nombre}\n`);
+    await printer.write(`${ticketData.local.direccion}\n`);
+  }
+  await printer.write(`Telefono: ${ticketData.local.telefono}\n`);
   if (ticketData.local.nit) {
     //* Informacion del documento del dominio PTY
     if (
@@ -803,7 +831,9 @@ async function designFullTicket(
         `Sucursal:${cufeData["codigoSucursal"]}  Caja:${cufeData["puntoFacturacion"]}\n`,
       );
     } else {
-      await printer.write(`NIT: ${ticketData.local.nit}\n`);
+      await printer.write(
+        `${ticketData.id_pais == HONDURAS ? "RTN:" : "NIT:"} ${ticketData.local.nit}\n`,
+      );
     }
   }
   await printer.write(`Numero: ${ticketData.numero_comprobante}\n`);
@@ -822,10 +852,35 @@ async function designFullTicket(
   }
 
   //* ======================================================
+  //* ============== Información de FE HN =================
+  //* ======================================================
+  if (billingData != null && billingData.id_pais == HONDURAS) {
+    await printer.setAlignment(Align.Left);
+    let rangoDesdeFormat = `${ticketData.local.codigo}-${ticketData.cashRegister?.codigo_punto_venta ?? "N/A"}-${"01"}-${billingData.rango_desde ?? "N/A"}`;
+    let rangoHastaFormat = `${ticketData.local.codigo}-${ticketData.cashRegister?.codigo_punto_venta ?? "N/A"}-${"01"}-${billingData.rango_hasta ?? "N/A"}`;
+
+    await printer.write(`CAI: ${ticketData.local.codigo_autorizacion}\n`);
+    await printer.write(`RANGO AUTORIZADO\n`);
+    await printer.write(`DE: ${rangoDesdeFormat}\n`);
+    await printer.write(`HASTA: ${rangoHastaFormat}\n`);
+    await printer.write(
+      `FECHA LIMITE: ${billingData.fecha_limite_autorizacion}\n`,
+    );
+    await printer.write(`${SEPARATOR}\n`);
+  }
+
+  //* ======================================================
   //* ========== Información del cliente y venta ===========
   //* ======================================================
   await printer.setAlignment(Align.Left);
-  if (ticketData.cuenta_venta.nombre_cliente_generico) {
+  if (
+    billingData != null &&
+    billingData.id_pais == HONDURAS &&
+    ticketData.cuenta_venta.cliente == null
+  ) {
+    await printer.write(`${translations.client}: CONSUMIDOR FINAL\n`);
+    await printer.write(`RTN: 9999999999999\n`);
+  } else if (ticketData.cuenta_venta.nombre_cliente_generico) {
     await printer.write(
       `${translations.client}: ${ticketData.cuenta_venta.nombre_cliente_generico}\n`,
     );
@@ -852,6 +907,9 @@ async function designFullTicket(
     await printer.write(
       `${cliente.tipo_documento}: ${cliente.numero_documento}\n`,
     );
+    await printer.write(`Telefono: ${cliente.telefono}\n`);
+    await printer.write(`Correo: ${cliente.email}\n`);
+    await printer.write(`${SEPARATOR}\n`);
   }
 
   //* Documento cliente, direccion telefono y correo solo en PTY
@@ -937,6 +995,29 @@ async function designFullTicket(
 
   // Totales
   await printer.setAlignment(Align.Right);
+
+  //* ======================================================
+  //* ====== Información de importes y excentos HN ========
+  //* ======================================================
+  if (billingData != null && billingData.id_pais == HONDURAS) {
+    await printer.write(
+      `Descuento y reabajas otorgados: ${ticketData.simbolo_moneda}${parseFloat(ticketData.cuenta_venta.descuento).toFixed(2) ?? 0.0}\n`,
+    );
+    await printer.write(`Exento: ${ticketData.simbolo_moneda}0.00\n`);
+    await printer.write(`Exonerado: ${ticketData.simbolo_moneda}0.00\n`);
+    if (ticketData.cuenta_venta.impuestos.length > 0) {
+      const regex = /\((.*?)\)/;
+      for (var impuesto of ticketData.cuenta_venta.impuestos) {
+        let match = (impuesto.impuesto ?? "").match(regex);
+        let porcentajeLimpio = match != null ? match[1] : impuesto.impuesto;
+        let importe = parseFloat(impuesto.importe_gravado ?? "0.00");
+        await printer.write(
+          `Impuesto Gravado ${porcentajeLimpio}: ${ticketData.simbolo_moneda}${importe.toFixed(2)}\n`,
+        );
+      }
+    }
+  }
+
   await printer.write(
     `${translations.subtotal}: ${
       ticketData.simbolo_moneda
@@ -945,20 +1026,33 @@ async function designFullTicket(
 
   const descuento = parseFloat(ticketData.cuenta_venta.descuento) || 0;
 
-  if (descuento > 0) {
+  if (
+    (descuento > 0 && billingData == null) ||
+    (descuento > 0 && billingData != null && billingData.id_pais != HONDURAS)
+  ) {
     await printer.write(
       `${translations.discount}: ${ticketData.simbolo_moneda}${descuento}\n`,
     );
   }
 
   // Mostrar los impuestos detalladamente
+  let totalImpuestos = 0.0;
   if (ticketData.cuenta_venta.impuestos.length > 0) {
     for (const impuesto of ticketData.cuenta_venta.impuestos) {
       await printer.write(
         `  ${impuesto.impuesto}: ${ticketData.simbolo_moneda}${impuesto.total}\n`,
       );
+      totalImpuestos += parseFloat(impuesto.total) || 0.0;
     }
   }
+
+  //* ======================================================
+  //* ====== Información de total de impuesto HN ========
+  //* ======================================================
+  await printer.write(
+    `Impuesto: ${ticketData.simbolo_moneda}${totalImpuestos.toFixed(2)}\n`,
+  );
+
   await printer.write(
     `${translations.tip}: ${
       ticketData.simbolo_moneda
