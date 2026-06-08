@@ -1012,7 +1012,7 @@ async function designFullTicket(
         let porcentajeLimpio = match != null ? match[1] : impuesto.impuesto;
         let importe = parseFloat(impuesto.importe_gravado ?? "0.00");
         await printer.write(
-          `Impuesto Gravado ${porcentajeLimpio}: ${ticketData.simbolo_moneda}${importe.toFixed(2)}\n`,
+          `Importe Gravado ${porcentajeLimpio}: ${ticketData.simbolo_moneda}${importe.toFixed(2)}\n`,
         );
       }
     }
