@@ -1001,7 +1001,7 @@ async function designFullTicket(
   //* ======================================================
   if (billingData != null && billingData.id_pais == HONDURAS) {
     await printer.write(
-      `Descuento y reabajas otorgados: ${ticketData.simbolo_moneda}${parseFloat(ticketData.cuenta_venta.descuento).toFixed(2) ?? 0.0}\n`,
+      `Descuento y rebajas otorgados: ${ticketData.simbolo_moneda}${parseFloat(ticketData.cuenta_venta.descuento).toFixed(2) ?? 0.0}\n`,
     );
     await printer.write(`Exento: ${ticketData.simbolo_moneda}0.00\n`);
     await printer.write(`Exonerado: ${ticketData.simbolo_moneda}0.00\n`);
