@@ -774,10 +774,10 @@ async function designFullTicket(
     billingData.tipo_factura === COMPROBANTE_CREDITO_FISCAL
   ) {
     await printer.write(`${translations.ccf}\n`);
-  } else if (
-    (billingData != null && billingData.id_pais == GUATEMALA) ||
-    (billingData != null && billingData.id_pais == HONDURAS)
-  ) {
+  } else if (billingData != null && billingData.id_pais == GUATEMALA) {
+    await printer.write(`Factura pequeño\n`);
+    await printer.write(`contribuyente\n`);
+  } else if (billingData != null && billingData.id_pais == HONDURAS) {
     await printer.write(`FACTURA\n`);
   } else if (billingData != null && billingData.id_pais == PANAMA) {
     await printer.write("\x1B\x21\x08"); // texto negrita
@@ -809,6 +809,13 @@ async function designFullTicket(
   ) {
     // direccion solo en GT y HN
     await printer.write(`${ticketData.local.direccion}\n`);
+
+    if (billingData.id_pais == GUATEMALA) {
+      //Departamento y municipio solo en GT
+      await printer.write(
+        `${billingData.direccion_catalogo.municipio_local.nombre}, ${billingData.direccion_catalogo.departamento_local.nombre}\n`,
+      );
+    }
   }
   if (billingData != null && billingData.id_pais == PANAMA) {
     // Razon social y direccion solo en PTY
@@ -847,7 +854,14 @@ async function designFullTicket(
     await printer.write(`Nro Autorizacion: ${billingData.id_factura_infile}\n`);
     await printer.write(`Serie: ${billingData.serie}\n`);
     await printer.write(`Nro: ${billingData.numero_documento}\n`);
-    await printer.write(`SUJETO A PAGOS TRIMESTRALES ISR\n`);
+
+    //* Imprimiendo frases de restaurante guardados en variable de sesion GT
+    if (billingData.frases != null) {
+      for (const frase of billingData.frases) {
+        await printer.write(`${frase.frase} \n`);
+      }
+    }
+
     await printer.write(`${SEPARATOR}\n`);
   }
 
