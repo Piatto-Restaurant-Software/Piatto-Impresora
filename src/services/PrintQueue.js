@@ -13,6 +13,8 @@ class PrintQueue {
     const priorityMap = {
       Comanda: 1,
       Ticket: 2,
+      self_service: 2,
+      SelfService: 2,
       Precuenta: 3,
       Cierre: 4,
     };

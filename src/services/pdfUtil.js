@@ -141,6 +141,8 @@ async function printTicketUnix(
       await designPreBillUnix(printer, ticketData, translations);
     } else if (ticketType === "Comanda") {
       await designOrderSlipUnix(printer, ticketData, translations);
+    } else if (ticketType === "self_service" || ticketType === "SelfService") {
+      await designSelfServiceTicket(printer, ticketData, translations);
     } else {
       await designTestTicket(printer, ticketData, translations);
     }
@@ -264,6 +266,118 @@ async function designTestTicket(printer, testData, translations) {
     console.log("¡Ticket de prueba enviado exitosamente!");
   } catch (err) {
     console.error("Error imprimiendo ticket de prueba:", err);
+  }
+}
+
+async function designSelfServiceTicket(printer, ticketData, translations = {}) {
+  console.time("SelfService_Speed");
+
+  const ESC = "\x1B";
+  const GS = "\x1D";
+  const JUSTIFY_CENTER = ESC + "a\x01";
+  const JUSTIFY_LEFT = ESC + "a\x00";
+  const JUSTIFY_RIGHT = ESC + "a\x02";
+  const TEXT_BOLD_LARGE = ESC + "!\x30";
+  const TEXT_BOLD = ESC + "!\x08";
+  const TEXT_NORMAL = ESC + "!\x00";
+  const CUT_PAPER = GS + "V\x41\x00";
+  const LINE_SEPARATOR = "-".repeat(48) + "\n";
+
+  function splitText(text, maxLength) {
+    if (!text || text.trim().length === 0) return [];
+
+    const words = text.trim().split(/\s+/);
+    const lines = [];
+    let currentLine = "";
+
+    for (const word of words) {
+      if ((currentLine + word).length > maxLength) {
+        if (currentLine.trim().length > 0) {
+          lines.push(currentLine.trim());
+        }
+        currentLine = `${word} `;
+      } else {
+        currentLine += `${word} `;
+      }
+    }
+
+    if (currentLine.trim().length > 0) {
+      lines.push(currentLine.trim());
+    }
+
+    return lines;
+  }
+
+  const orderNumber = String(ticketData.orderNumber || "").padStart(5, "0");
+  const instructionLines = splitText(ticketData.instructionMessage || "", 22);
+  const currencySymbol = String(ticketData.currencySymbol || "").trim();
+  const printedAt = String(ticketData.printedAt || "").trim();
+  const items = Array.isArray(ticketData.items) ? ticketData.items : [];
+  const totalLabel = `${translations.total || "Total"}:`;
+  const totalValue = `${currencySymbol}${Number(ticketData.total || 0).toFixed(2)}`;
+
+  let b = "";
+
+  b += JUSTIFY_CENTER;
+  b += TEXT_BOLD_LARGE + `${orderNumber}\n` + TEXT_NORMAL;
+  b += ESC + "d\x01";
+
+  for (const line of instructionLines) {
+    b += TEXT_BOLD + `${line}\n` + TEXT_NORMAL;
+  }
+
+  if (printedAt) {
+    b += ESC + "d\x01";
+    b += JUSTIFY_RIGHT + `${printedAt}\n`;
+  }
+
+  b += ESC + "d\x01";
+  b += JUSTIFY_LEFT + "QTY ITEM\n";
+
+  for (const item of items) {
+    const itemLines = splitText(item.name || "", 40);
+    if (itemLines.length === 0) {
+      continue;
+    }
+
+    const quantity = String(item.quantity ?? "").padEnd(4);
+    b += `${quantity}${itemLines[0]}\n`;
+
+    for (const line of itemLines.slice(1)) {
+      b += `    ${line}\n`;
+    }
+
+    const modifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
+    for (const modifier of modifiers) {
+      const modifierLines = splitText(`- ${modifier}`, 36);
+      for (const line of modifierLines) {
+        b += `    ${line}\n`;
+      }
+    }
+
+    const notes = String(item.notes || "").trim();
+    if (notes) {
+      const noteLines = splitText(`Nota: ${notes}`, 34);
+      for (const line of noteLines) {
+        b += `    ${line}\n`;
+      }
+    }
+  }
+
+  b += ESC + "d\x01";
+  b += LINE_SEPARATOR;
+  b += JUSTIFY_LEFT;
+  b += TEXT_BOLD_LARGE;
+  b += `${totalLabel.padEnd(12)}${totalValue.padStart(12)}\n`;
+  b += TEXT_NORMAL;
+  b += ESC + "d\x02";
+  b += CUT_PAPER;
+
+  try {
+    await printer.write(b);
+    console.timeEnd("SelfService_Speed");
+  } catch (err) {
+    console.error("Error imprimiendo ticket self service:", err);
   }
 }
 
@@ -468,6 +582,10 @@ async function printTicketWindows(
         break;
       case "IngresosEgresos":
         await printIncomeExpenseWindows(printer, ticketData, translations);
+        break;
+      case "self_service":
+      case "SelfService":
+        await designSelfServiceTicket(printer, ticketData, translations);
         break;
       default:
         await designTestTicket(printer, ticketData, translations);
