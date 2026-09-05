@@ -5,6 +5,7 @@ const os = require("os");
 
 const {
   COMPROBANTE_CREDITO_FISCAL,
+  GT_PEQUENO_CONTRIBUYENTE,
 } = require("../constants/tipo-documento-factura-constant");
 
 // Librería de impresión
@@ -775,8 +776,12 @@ async function designFullTicket(
   ) {
     await printer.write(`${translations.ccf}\n`);
   } else if (billingData != null && billingData.id_pais == GUATEMALA) {
-    await printer.write(`Factura pequeño\n`);
-    await printer.write(`contribuyente\n`);
+    if (billingData.tipo_factura === GT_PEQUENO_CONTRIBUYENTE) {
+      await printer.write(`Factura pequeño\n`);
+      await printer.write(`contribuyente\n`);
+    } else {
+      await printer.write(`Factura\n`);
+    }
   } else if (billingData != null && billingData.id_pais == HONDURAS) {
     await printer.write(`FACTURA\n`);
   } else if (billingData != null && billingData.id_pais == PANAMA) {
@@ -1184,6 +1189,15 @@ async function designFullTicket(
   }
   await printer.write(`${translations.thank_you}\n`);
   await printer.write(`${translations.come_again}\n`);
+
+  //* ======================================================
+  //* ========= Certificador FE GT (solo GT) ================
+  //* ======================================================
+  if (billingData != null && billingData.id_pais == GUATEMALA) {
+    await printer.feed(1);
+    await printer.write(`Certificador: INFILE. S.A\n`);
+    await printer.write(`NIT: 12521337\n`);
+  }
 
   // Alimentar y cortar papel
   await printer.feed(6);
