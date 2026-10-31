@@ -415,7 +415,9 @@ ipcMain.handle("get-translations", async (_, locale) => {
 //Endpoints
 expressApp.post("/api/v1/impresion/test", async (req, res) => {
   try {
-    const { data, printerName, ticketType } = req.body;
+    const { printerName, ticketType } = req.body;
+    let { data } = req.body;
+    if (ticketType === "EnvioDomicilio") data = { ...data, lines: req.body.lines };
 
     console.log("TIPO DE IMPRESION: ", ticketType);
     console.log("NOMBRE DE IMPRESORA: ", printerName);

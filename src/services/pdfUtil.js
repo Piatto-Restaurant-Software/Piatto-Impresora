@@ -141,6 +141,8 @@ async function printTicketUnix(
       await designPreBillUnix(printer, ticketData, translations);
     } else if (ticketType === "Comanda") {
       await designOrderSlipUnix(printer, ticketData, translations);
+    } else if (ticketType === "EnvioDomicilio") {
+      await designDeliveryTicket(printer, ticketData);
     } else {
       await designTestTicket(printer, ticketData, translations);
     }
@@ -441,6 +443,25 @@ async function designTicketCierreWindows(printer, data, translations) {
 /**
  * Imprime un ticket en Windows
  */
+
+// Delivery ticket: renders pre-built lines sent by the operational app.
+async function designDeliveryTicket(printer, ticketData) {
+  const ESC = "";
+  const align = { left: ESC + "a ", center: ESC + "a", right: ESC + "a" };
+  const lines = Array.isArray(ticketData && ticketData.lines) ? ticketData.lines : [];
+  for (const l of lines) {
+    // ESC ! bits: 0x08 bold, 0x10 double height, 0x20 double width (big = both, proportional).
+    const mode = (l.bold ? 0x08 : 0) | (l.doubleHeight || l.big ? 0x10 : 0) | (l.big ? 0x20 : 0);
+    await printer.write(align[l.align] || align.left);
+    await printer.write(ESC + "!" + String.fromCharCode(mode));
+    await printer.write(`${l.text || ""}
+`);
+  }
+  await printer.write(ESC + "! " + align.left);
+  await printer.feed(4);
+  await printer.write("VA ");
+}
+
 async function printTicketWindows(
   ticketData,
   printerName,
@@ -477,6 +498,9 @@ async function printTicketWindows(
         break;
       case "AnulacionPedido":
         await cancelledOrderWindows(printer, ticketData, translations);
+        break;
+      case "EnvioDomicilio":
+        await designDeliveryTicket(printer, ticketData);
         break;
       case "IngresosEgresos":
         await printIncomeExpenseWindows(printer, ticketData, translations);
