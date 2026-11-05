@@ -420,9 +420,25 @@ async function designTicketCierreWindows(printer, data, translations) {
   // Actividad Final
   b += JUSTIFY_CENTER + "ACTIVIDAD\n" + SEPARATOR;
   b += JUSTIFY_LEFT;
-  addRow("Subtotales:", data.subtotales);
-  addRow("Impuestos:", data.total_impuestos);
-  addRow("Totales:", data.totales);
+  if (Array.isArray(data.desglose_impuestos)) {
+    // Honduras: importes gravados e impuestos desglosados por tipo
+    for (const impuesto of data.desglose_impuestos) {
+      addRow(`Importe Gravado ${impuesto.porcentaje}%:`, impuesto.importe_gravado);
+    }
+    addRow("Subtotal:", data.subtotales);
+    for (const impuesto of data.desglose_impuestos) {
+      addRow(`${impuesto.nombre} (${impuesto.porcentaje}%):`, impuesto.monto);
+    }
+    addRow("Impuesto:", data.total_impuestos);
+    addRow("Propina:", data.total_propina);
+    b += TEXT_BOLD;
+    addRow("Total:", data.totales);
+    b += TEXT_NORMAL;
+  } else {
+    addRow("Subtotales:", data.subtotales);
+    addRow("Impuestos:", data.total_impuestos);
+    addRow("Totales:", data.totales);
+  }
   b += SEPARATOR;
 
   // Finalización
