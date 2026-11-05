@@ -437,6 +437,7 @@ async function designTicketCierreWindows(printer, data, translations) {
   } else {
     addRow("Subtotales:", data.subtotales);
     addRow("Impuestos:", data.total_impuestos);
+    if (data.total_propina != null) addRow("Propina:", data.total_propina);
     addRow("Totales:", data.totales);
   }
   b += SEPARATOR;
