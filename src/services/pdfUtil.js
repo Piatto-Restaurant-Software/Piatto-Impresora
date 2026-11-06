@@ -4,6 +4,7 @@ const { exec } = require("child_process");
 const os = require("os");
 
 const {
+  FACTURA,
   COMPROBANTE_CREDITO_FISCAL,
 } = require("../constants/tipo-documento-factura-constant");
 
@@ -791,6 +792,13 @@ async function designFullTicket(
     billingData.tipo_factura === COMPROBANTE_CREDITO_FISCAL
   ) {
     await printer.write(`${translations.ccf}\n`);
+  } else if (
+    billingData != null &&
+    billingData.id_pais == EL_SALVADOR &&
+    billingData.tipo_factura === FACTURA
+  ) {
+    // DTE 01 - Factura Consumidor Final en SV
+    await printer.write(`FACTURA\n`);
   } else if (billingData != null && billingData.id_pais == GUATEMALA) {
     await printer.write(`Factura pequeño\n`);
     await printer.write(`contribuyente\n`);
