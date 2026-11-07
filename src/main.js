@@ -161,9 +161,12 @@ expressApp.use(cors());
 expressApp.use(bodyParser.json());
 expressApp.use("/assets", express.static("assets"));
 
+const AGENT_VERSION = require("../package.json").version;
+const AGENT_CAPABILITIES = ["lines", "qr"];
+
 // Endpoint de prueba para verificar que el servidor está activo
 expressApp.get("/api/v1/status", (req, res) => {
-  res.send({ status: "Server is running" });
+  res.send({ status: "Server is running", version: AGENT_VERSION, capabilities: AGENT_CAPABILITIES });
 });
 
 function publishBonjourService(retries = 5) {
@@ -233,6 +236,8 @@ function startUDPBroadcast() {
     ip: localIP,
     port: 3001,
     serviceName: "POS-Impresora",
+    version: AGENT_VERSION,
+    capabilities: AGENT_CAPABILITIES,
     timestamp: Date.now(),
     name: AREA_IDENTIFIER,
   });
@@ -755,7 +760,7 @@ expressApp.post("/api/v1/impresion/prueba", async (req, res) => {
     };
 
     console.log("Enviando a printTicket...");
-    await printTicket(testData, printerName, translations);
+    await printTicket(testData, printerName, translations, "Prueba");
     console.log("Impresión completada");
 
     res.send({

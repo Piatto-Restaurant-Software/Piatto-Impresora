@@ -143,8 +143,16 @@ async function printTicketUnix(
       await designOrderSlipUnix(printer, ticketData, translations);
     } else if (ticketType === "EnvioDomicilio") {
       await designDeliveryTicket(printer, ticketData);
-    } else {
+    } else if (ticketType === "Cierre") {
+      await designTicketCierreWindows(printer, ticketData, translations);
+    } else if (ticketType === "AnulacionPedido") {
+      await cancelledOrderWindows(printer, ticketData, translations);
+    } else if (ticketType === "IngresosEgresos") {
+      await printIncomeExpenseWindows(printer, ticketData, translations);
+    } else if (ticketType === "Prueba" || ticketType == null) {
       await designTestTicket(printer, ticketData, translations);
+    } else {
+      throw new Error(`Tipo de ticket no soportado: ${ticketType}`);
     }
 
     // Generar archivo temporal
@@ -450,6 +458,19 @@ async function designDeliveryTicket(printer, ticketData) {
   const align = { left: ESC + "a ", center: ESC + "a", right: ESC + "a" };
   const lines = Array.isArray(ticketData && ticketData.lines) ? ticketData.lines : [];
   for (const l of lines) {
+    if (l.kind === "qr") {
+      const qrData = String(l.data || "");
+      if (!qrData) continue;
+      await printer.write(align.center);
+      if (qrData.length > 150) {
+        // Long URLs: anti-bleed raster avoids oversized native QR modules.
+        await printer.draw(generateAntiBleedQR(qrData, 350));
+      } else {
+        await printer.qrcode(qrData, 5);
+      }
+      await printer.write(align.left);
+      continue;
+    }
     // ESC ! bits: 0x08 bold, 0x10 double height, 0x20 double width (big = both, proportional).
     const mode = (l.bold ? 0x08 : 0) | (l.doubleHeight || l.big ? 0x10 : 0) | (l.big ? 0x20 : 0);
     await printer.write(align[l.align] || align.left);
@@ -505,8 +526,13 @@ async function printTicketWindows(
       case "IngresosEgresos":
         await printIncomeExpenseWindows(printer, ticketData, translations);
         break;
-      default:
+      case "Prueba":
+      case null:
+      case undefined:
         await designTestTicket(printer, ticketData, translations);
+        break;
+      default:
+        throw new Error(`Tipo de ticket no soportado: ${ticketType}`);
     }
 
     // Generar archivo temporal
