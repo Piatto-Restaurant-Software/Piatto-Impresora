@@ -152,7 +152,7 @@ async function printTicketUnix(
     } else if (ticketType === "Prueba" || ticketType == null) {
       await designTestTicket(printer, ticketData, translations);
     } else {
-      throw new Error(`Tipo de ticket no soportado: ${ticketType}`);
+      await designTestTicket(printer, ticketData, translations);
     }
 
     // Generar archivo temporal
@@ -532,7 +532,7 @@ async function printTicketWindows(
         await designTestTicket(printer, ticketData, translations);
         break;
       default:
-        throw new Error(`Tipo de ticket no soportado: ${ticketType}`);
+        await designTestTicket(printer, ticketData, translations);
     }
 
     // Generar archivo temporal
